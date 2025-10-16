@@ -4,6 +4,7 @@ Gestisce tutte le operazioni Git (clone, pull, commit, push).
 """
 import os
 import subprocess
+import shutil
 from pathlib import Path
 from git import Repo
 from git.exc import GitCommandError
@@ -22,11 +23,20 @@ class GitHandler:
     def clone_or_open_repo(self):
         """Clona il repo se non esiste, altrimenti lo apre."""
         try:
-            if self.repo_path.exists():
+            # Check se è davvero un repo (esiste .git)
+            is_repo = self.repo_path.exists() and (self.repo_path / ".git").exists()
+            
+            if is_repo:
                 logger.info(f"Repository esiste già in {self.repo_path}, apertura...")
                 self.repo = Repo(self.repo_path)
                 logger.info("Repository aperto con successo.")
             else:
+                # Ripulisci directory se esiste ma non è un repo
+                if self.repo_path.exists():
+                    logger.info(f"Directory {self.repo_path} esiste ma non è un repo, pulizia...")
+                    import shutil
+                    shutil.rmtree(self.repo_path)
+                
                 logger.info(f"Clonazione repository da {REPO_URL}...")
                 git_url = get_git_auth_url()
                 self.repo = Repo.clone_from(git_url, self.repo_path)
