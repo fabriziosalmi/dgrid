@@ -1,0 +1,9 @@
+{
+  "node_id": "local-test-001",
+  "node_name": "worker-local-test-001",
+  "cpu_count": 10,
+  "memory_gb": 16.0,
+  "disk_gb": 926.35,
+  "last_heartbeat": "2025-10-16T18:53:33.513676",
+  "status": "active"
+}
