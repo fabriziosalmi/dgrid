@@ -1,0 +1,83 @@
+version: '3.8'
+
+services:
+  dgrid-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    
+    container_name: dgrid-test-worker
+    
+    environment:
+      # 🔗 Repository Configuration
+      DGRID_REPO_URL: https://github.com/fabriziosalmi/dgrid.git
+      DGRID_REPO_PATH: /tmp/dgrid-repo
+      
+      # 🏷️ Worker Identity
+      NODE_ID: docker-test-node-001
+      GIT_USER_NAME: "D-GRID Docker Worker"
+      GIT_USER_EMAIL: "docker-worker@d-grid.local"
+      
+      # ⏱️ Timing (seconds)
+      PULL_INTERVAL: 5
+      HEARTBEAT_INTERVAL: 10
+      DOCKER_TIMEOUT: 30
+      
+      # 📊 Logging
+      LOG_LEVEL: DEBUG
+      LOG_FILE: /tmp/worker_docker.log
+    
+    # Monta volumi per persistenza e accesso ai log
+    volumes:
+      # Repository cache
+      - dgrid-repo:/tmp/dgrid-repo
+      
+      # Docker socket (per eseguire container in container)
+      - /var/run/docker.sock:/var/run/docker.sock
+      
+      # Log visibili dall'host
+      - ./logs/docker:/tmp:rw
+    
+    # Network (isolato per sicurezza)
+    networks:
+      - dgrid-network
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+    
+    # Restart policy
+    restart: unless-stopped
+    
+    # Security
+    security_opt:
+      - no-new-privileges:true
+    
+    # Log configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "ps", "aux"]  # Semplice check se il processo gira
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  dgrid-repo:
+    driver: local
+
+networks:
+  dgrid-network:
+    driver: bridge

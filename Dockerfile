@@ -6,12 +6,16 @@ FROM python:3.11-alpine
 LABEL maintainer="D-GRID"
 LABEL description="D-GRID Worker Node - Decentralized Git-Relay Infrastructure"
 
-# Installa dipendenze di sistema (git, docker-cli, curl)
+# Installa dipendenze di sistema (git, docker-cli, curl, build-essentials per psutil)
 RUN apk add --no-cache \
     git \
     docker-cli \
     curl \
-    ca-certificates
+    ca-certificates \
+    gcc \
+    python3-dev \
+    musl-dev \
+    linux-headers
 
 # Crea directory di lavoro
 WORKDIR /app
