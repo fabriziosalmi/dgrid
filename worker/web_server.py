@@ -17,9 +17,9 @@ from pathlib import Path
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import threading
 import time
-from logger_config import setup_logger
+from logger_config import get_logger
 
-logger = setup_logger("d-grid.web_server")
+logger = get_logger("d-grid.web_server")
 
 # Configurazione
 REPO_PATH = Path(os.getenv("DGRID_REPO_PATH", "/tmp/dgrid-repo"))
