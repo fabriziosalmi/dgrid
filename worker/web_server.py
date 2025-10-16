@@ -77,6 +77,7 @@ class WorkerDashboardHandler(BaseHTTPRequestHandler):
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>D-GRID Worker: {NODE_ID}</title>
+    <html lang="en">
     <style>
         * {{
             margin: 0;
@@ -254,7 +255,7 @@ class WorkerDashboardHandler(BaseHTTPRequestHandler):
         <div class="grid">
             <!-- Node Status -->
             <div class="card status">
-                <h2>📊 Status Nodo</h2>
+                <h2>📊 Node Status</h2>
                 <div class="info-group">
                     <div class="info-label">Node ID</div>
                     <div class="info-value">{status['node_id']}</div>
@@ -262,7 +263,7 @@ class WorkerDashboardHandler(BaseHTTPRequestHandler):
                 <div class="info-group">
                     <div class="info-label">Status</div>
                     <div class="status-badge {'active' if status['is_active'] else 'inactive'}">
-                        {'🟢 Attivo' if status['is_active'] else '🔴 Inattivo'}
+                        {'🟢 Active' if status['is_active'] else '🔴 Inactive'}
                     </div>
                 </div>
                 <div class="info-group">
@@ -277,7 +278,7 @@ class WorkerDashboardHandler(BaseHTTPRequestHandler):
             
             <!-- Network View -->
             <div class="card">
-                <h2>🌐 Vista Rete</h2>
+                <h2>🌐 Network View</h2>
                 <div class="info-group">
                     <div class="info-label">Repository URL</div>
                     <div class="info-value" style="font-size: 0.9em; word-break: break-all;">
@@ -289,7 +290,7 @@ class WorkerDashboardHandler(BaseHTTPRequestHandler):
                     <div class="info-value">{status['repo_status']}</div>
                 </div>
                 <div class="info-group">
-                    <div class="info-label">Nodi Visibili</div>
+                    <div class="info-label">Visible Nodes</div>
                     <div class="info-value">{status['visible_nodes']}</div>
                 </div>
             </div>
@@ -298,19 +299,19 @@ class WorkerDashboardHandler(BaseHTTPRequestHandler):
             <div class="card">
                 <h2>📋 Task Summary</h2>
                 <div class="info-group">
-                    <div class="info-label">In Coda</div>
+                    <div class="info-label">In Queue</div>
                     <div class="info-value">{status['tasks_queue']}</div>
                 </div>
                 <div class="info-group">
-                    <div class="info-label">In Esecuzione</div>
+                    <div class="info-label">Running</div>
                     <div class="info-value">{status['tasks_in_progress']}</div>
                 </div>
                 <div class="info-group">
-                    <div class="info-label">Completati</div>
+                    <div class="info-label">Completed</div>
                     <div class="info-value">{status['tasks_completed']}</div>
                 </div>
                 <div class="info-group">
-                    <div class="info-label">Falliti</div>
+                    <div class="info-label">Failed</div>
                     <div class="info-value">{status['tasks_failed']}</div>
                 </div>
             </div>
@@ -318,11 +319,11 @@ class WorkerDashboardHandler(BaseHTTPRequestHandler):
         
         <!-- Detailed Tasks -->
         <div class="card">
-            <h2>📝 Task Recenti</h2>
+            <h2>📝 Recent Tasks</h2>
             {'<div class="tasks-grid">' + ''.join([
                 f'<div class="task-item"><div class="task-label">Task</div><div class="task-value">{t}</div></div>'
                 for t in status.get('recent_tasks', [])[:8]
-            ]) + '</div>' if status.get('recent_tasks') else '<div style="color: #999; padding: 20px; text-align: center;">Nessun task recente</div>'}
+            ]) + '</div>' if status.get('recent_tasks') else '<div style="color: #999; padding: 20px; text-align: center;">No recent tasks</div>'}
         </div>
         
         <footer>
@@ -331,7 +332,7 @@ class WorkerDashboardHandler(BaseHTTPRequestHandler):
         </footer>
         
         <div class="refresh-notice">
-            🔄 Pagina si aggiorna ogni 5 secondi
+            🔄 Page refreshes every 5 seconds
         </div>
     </div>
     
