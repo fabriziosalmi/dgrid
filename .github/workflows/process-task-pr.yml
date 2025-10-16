@@ -1,0 +1,187 @@
+name: Validate Task Submission PR
+# Workflow per validare i task sottomessi in tasks/unapproved/
+# NO AUTO-MERGE. Solo validazione. Il merge è l'approvazione umana.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'tasks/unapproved/**'
+
+jobs:
+  validate-task-submission:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: '1️⃣ Structural Validation (File Count & Location)'
+        id: structural_check
+        run: |
+          echo "� Verificando struttura del file..."
+          
+          # Ottieni la lista di file modificati nella PR
+          files=$(git diff --name-only origin/main...HEAD 2>/dev/null || echo "")
+          
+          if [ -z "$files" ]; then
+            echo "❌ ERRORE: Nessun file trovato nella PR"
+            exit 1
+          fi
+          
+          # Filtra solo i file in tasks/unapproved/
+          unapproved_files=$(echo "$files" | grep '^tasks/unapproved/' || true)
+          
+          if [ -z "$unapproved_files" ]; then
+            echo "❌ ERRORE: Nessun file trovato in tasks/unapproved/"
+            echo "📝 File della PR: $files"
+            exit 1
+          fi
+          
+          # Conta i file
+          file_count=$(echo "$unapproved_files" | wc -l)
+          if [ "$file_count" -ne 1 ]; then
+            echo "❌ ERRORE: La PR deve contenere esattamente 1 file. Trovati: $file_count"
+            echo "📝 File: $unapproved_files"
+            exit 1
+          fi
+          
+          task_file="$unapproved_files"
+          
+          # Valida estensione .json
+          if [[ ! "$task_file" =~ \.json$ ]]; then
+            echo "❌ ERRORE: Il file deve avere estensione .json. Trovato: $task_file"
+            exit 1
+          fi
+          
+          echo "✅ Validazione strutturale superata"
+          echo "📄 File: $task_file"
+          echo "task_file=$task_file" >> $GITHUB_OUTPUT
+      
+      - name: '2️⃣ JSON Schema Validation'
+        id: schema_check
+        env:
+          TASK_FILE: ${{ steps.structural_check.outputs.task_file }}
+        run: |
+          echo "� Validando schema JSON..."
+          
+          python3 << 'PYTHON_SCRIPT'
+          import json
+          import sys
+          from pathlib import Path
+          
+          task_file = "${{ env.TASK_FILE }}"
+          
+          print(f"📄 Validando file: {task_file}")
+          
+          # Leggi il file
+          try:
+              with open(task_file, 'r') as f:
+                  data = json.load(f)
+          except json.JSONDecodeError as e:
+              print(f"❌ ERRORE: JSON malformato: {e}")
+              sys.exit(1)
+          except FileNotFoundError:
+              print(f"❌ ERRORE: File non trovato: {task_file}")
+              sys.exit(1)
+          
+          # Campi obbligatori
+          required_fields = ['task_id', 'script', 'timeout_seconds']
+          missing_fields = [f for f in required_fields if f not in data]
+          
+          if missing_fields:
+              print(f"❌ ERRORE: Campi obbligatori mancanti: {missing_fields}")
+              print(f"📝 Campi trovati: {list(data.keys())}")
+              sys.exit(1)
+          
+          # Validazione task_id
+          task_id = data.get('task_id')
+          if not isinstance(task_id, str) or len(task_id) == 0:
+              print(f"❌ ERRORE: task_id deve essere una stringa non vuota")
+              sys.exit(1)
+          if len(task_id) > 64:
+              print(f"❌ ERRORE: task_id troppo lungo (max 64 char): {len(task_id)}")
+              sys.exit(1)
+          if not all(c.isalnum() or c in '-_' for c in task_id):
+              print(f"❌ ERRORE: task_id può contenere solo alfanumerico, '-' e '_': {task_id}")
+              sys.exit(1)
+          
+          # Validazione script
+          script = data.get('script')
+          if not isinstance(script, str) or len(script) == 0:
+              print(f"❌ ERRORE: script deve essere una stringa non vuota")
+              sys.exit(1)
+          if len(script) > 5000:
+              print(f"❌ ERRORE: script troppo lungo (max 5000 char): {len(script)}")
+              sys.exit(1)
+          
+          # Validazione timeout_seconds
+          timeout = data.get('timeout_seconds')
+          if not isinstance(timeout, int):
+              print(f"❌ ERRORE: timeout_seconds deve essere un intero, trovato: {type(timeout).__name__}")
+              sys.exit(1)
+          if timeout < 10 or timeout > 300:
+              print(f"❌ ERRORE: timeout_seconds deve essere tra 10 e 300 secondi, trovato: {timeout}")
+              sys.exit(1)
+          
+          print("✅ Validazione schema superata")
+          print(f"   task_id: {task_id}")
+          print(f"   script length: {len(script)} char")
+          print(f"   timeout_seconds: {timeout}s")
+          
+          PYTHON_SCRIPT
+      
+      - name: '3️⃣ Comment PR with Status'
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const jobStatus = '${{ job.status }}';
+            const taskFile = '${{ steps.structural_check.outputs.task_file }}';
+            
+            let comment = '';
+            if (jobStatus === 'success') {
+              comment = `✅ **Validazione task superata!**
+              
+              Il tuo task è stato validato con successo:
+              - ✅ Struttura file corretta
+              - ✅ JSON valido
+              - ✅ Schema conforme
+              
+              **Prossimi passi:**
+              Un maintainer revisionerà il task dal punto di vista logico/funzionale.
+              Se approva, farà il merge e il task verrà aggiunto alla coda di esecuzione.
+              `;
+            } else {
+              comment = `❌ **Validazione task FALLITA**
+              
+              Il tuo task non ha superato i controlli di validazione automatici.
+              Controlla i log sopra per i dettagli dell'errore.
+              
+              **Common Issues:**
+              - Campo obbligatorio mancante (task_id, script, timeout_seconds)
+              - timeout_seconds non è un intero tra 10 e 300
+              - JSON malformato
+              - Più di 1 file nella PR
+              
+              Correggi il file e pushalo di nuovo per ritentare la validazione.
+              `;
+            }
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+      
+      - name: '🚨 Fail if Validation Failed'
+        if: failure()
+        run: |
+          echo "❌ Validazione fallita. Controlla i log sopra."
+          exit 1

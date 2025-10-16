@@ -1,0 +1,87 @@
+name: Generate and Deploy Dashboard
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'nodes/**'
+      - 'tasks/**'
+      - '.github/scripts/generate_dashboard.py'
+  workflow_dispatch:
+  schedule:
+    - cron: '*/5 * * * *'  # Ogni 5 minuti
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Configure Git
+        run: |
+          git config user.name "D-GRID Maintainer Bot"
+          git config user.email "actions@github.com"
+
+      - name: Generate Dashboard
+        id: generate
+        run: |
+          python .github/scripts/generate_dashboard.py
+          echo "dashboard_generated=true" >> $GITHUB_OUTPUT
+
+      - name: Commit changes (if any)
+        id: commit
+        run: |
+          if git diff --quiet; then
+            echo "No changes to commit"
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          else
+            echo "Committing changes..."
+            git add -A
+            git commit -m "docs: Dashboard update - $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+            git push origin main
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './index.html'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Job Summary
+        run: |
+          echo "## 🌐 Dashboard Generation Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Status:** ✅ Success" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.commit.outputs.has_changes }}" = "true" ]; then
+            echo "- Dashboard updated and pushed to main" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- No new changes detected" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "- Deployed to GitHub Pages" >> $GITHUB_STEP_SUMMARY

@@ -1,0 +1,5 @@
+{
+  "task_id": "demo-task-001",
+  "script": "echo 'D-GRID è live!' && python3 --version",
+  "timeout_seconds": 30
+}
