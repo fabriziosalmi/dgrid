@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="refresh" content="60">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>D-GRID Mission Control</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            min-height: 100vh;
+            padding: 2em;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            padding: 2.5em;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 2em;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 1.5em;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            color: #333;
+            margin-bottom: 0.5em;
+        }
+        
+        .header p {
+            color: #666;
+            font-size: 1.1em;
+            margin-bottom: 0.5em;
+        }
+        
+        .update-info {
+            color: #999;
+            font-size: 0.9em;
+            font-style: italic;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5em;
+            margin: 2em 0;
+        }
+        
+        .stat {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1.5em;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .stat h3 {
+            font-size: 2.8em;
+            margin-bottom: 0.3em;
+            font-weight: 700;
+        }
+        
+        .stat p {
+            font-size: 0.95em;
+            opacity: 0.95;
+        }
+        
+        .stat.active {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+        }
+        
+        .stat.queue {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        
+        .stat.running {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+        
+        .stat.completed {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        }
+        
+        h2 {
+            color: #333;
+            font-size: 1.5em;
+            margin: 2em 0 1em 0;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 0.7em;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1em;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+        
+        th {
+            background-color: #f8f9fa;
+            color: #333;
+            padding: 1em;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 2px solid #ddd;
+        }
+        
+        td {
+            padding: 0.9em 1em;
+            border-bottom: 1px solid #eee;
+        }
+        
+        tr:hover {
+            background-color: #f8f9fa;
+        }
+        
+        tr:last-child td {
+            border-bottom: none;
+        }
+        
+        code {
+            background-color: #f5f5f5;
+            padding: 0.2em 0.5em;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+        
+        .empty-message {
+            text-align: center;
+            color: #999;
+            padding: 2em;
+            font-style: italic;
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 3em;
+            padding-top: 2em;
+            border-top: 2px solid #eee;
+            color: #888;
+            font-size: 0.9em;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 0.3em 0.8em;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+        
+        .badge.active {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        
+        .badge.inactive {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🌐 D-GRID Mission Control</h1>
+            <p>Stato della rete decentralizzata di esecuzione task</p>
+            <div class="update-info">
+                Ultimo aggiornamento: <strong>2025-10-16 18:40:09 UTC</strong>
+                • Auto-refresh ogni 60 secondi
+            </div>
+        </div>
+        
+        <h2>📊 Stato Generale</h2>
+        <div class="stats">
+            <div class="stat active">
+                <h3>0</h3>
+                <p>Nodi Attivi</p>
+            </div>
+            <div class="stat queue">
+                <h3>1</h3>
+                <p>Task in Coda</p>
+            </div>
+            <div class="stat running">
+                <h3>0</h3>
+                <p>Task in Esecuzione</p>
+            </div>
+            <div class="stat completed">
+                <h3>0</h3>
+                <p>Task Completati</p>
+            </div>
+        </div>
+        
+        <h2>🖥️ Nodi della Rete</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 15%;">Stato</th>
+                    <th style="width: 20%;">ID Nodo</th>
+                    <th style="width: 15%;">CPU Cores</th>
+                    <th style="width: 15%;">Memoria</th>
+                    <th style="width: 35%;">Ultimo Heartbeat</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td colspan='5' style='text-align: center; color: #999;'>Nessun nodo registrato.</td></tr>
+            </tbody>
+        </table>
+        
+        <h2>⚙️ Dettagli Task</h2>
+        <p style="color: #666; margin-bottom: 1em;">
+            Totale: <strong>1</strong> task nel sistema
+            • Failed: <strong>0</strong>
+        </p>
+        
+        <div class="footer">
+            <p>
+                D-GRID v2.0 • Operazione Decentralizzata<br>
+                <small>Dashboard generata automaticamente ogni 5 minuti</small>
+            </p>
+        </div>
+    </div>
+</body>
+</html>
