@@ -8,6 +8,10 @@ services:
     
     container_name: dgrid-test-worker
     
+    # Esponi porta per dashboard locale
+    ports:
+      - "8000:8000"
+    
     environment:
       # 🔗 Repository Configuration
       DGRID_REPO_URL: https://github.com/fabriziosalmi/dgrid.git

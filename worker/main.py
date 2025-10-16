@@ -11,6 +11,7 @@ from git_handler import get_git_handler
 from state_manager import StateManager
 from task_runner import TaskRunner
 from config import PULL_INTERVAL, HEARTBEAT_INTERVAL, NODE_ID, validate_config
+from web_server import start_web_server
 
 logger = get_logger("main")
 
@@ -66,6 +67,15 @@ def main():
         sys.exit(1)
     
     logger.info("✅ Nodo registrato e pronto.")
+    
+    # Avvia il web server per la dashboard locale
+    logger.info("Avvio web server locale...")
+    try:
+        start_web_server()
+        logger.info("✅ Web server avviato su http://0.0.0.0:8000")
+    except Exception as e:
+        logger.warning(f"⚠️  Non è stato possibile avviare il web server: {e}")
+    
     logger.info("Avvio loop principale...")
     logger.info("-" * 60)
     

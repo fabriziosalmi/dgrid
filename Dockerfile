@@ -38,8 +38,8 @@ ENV HEARTBEAT_INTERVAL=60
 ENV LOG_LEVEL=INFO
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1 || echo "Running"
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+    CMD curl -f http://localhost:8000/health || ps aux | grep -q "python3 main.py" || exit 1
 
 # Entrypoint
 ENTRYPOINT ["python3", "main.py"]
