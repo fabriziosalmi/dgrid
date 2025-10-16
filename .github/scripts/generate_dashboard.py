@@ -483,7 +483,9 @@ def main():
     html_content = generate_html(nodes, counts)
     
     print("\n5️⃣  Salvataggio dashboard...")
-    output_path = REPO_ROOT / "index.html"
+    docs_dir = REPO_ROOT / "docs"
+    docs_dir.mkdir(exist_ok=True)
+    output_path = docs_dir / "index.html"
     with open(output_path, "w", encoding="utf-8") as f:
         f.write(html_content)
     print(f"   ✓ Dashboard salvata in {output_path}")
