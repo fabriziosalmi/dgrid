@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 D-GRID Worker Node - Main Entry Point
-Il cuore del worker: ciclo principale di esecuzione.
+The heart of the worker: main execution loop.
 """
 import time
 import signal
@@ -15,134 +15,134 @@ from web_server import start_web_server
 
 logger = get_logger("main")
 
-# Flag per il graceful shutdown
+# Flag for graceful shutdown
 shutdown_requested = False
 task_in_progress = False
 
 def signal_handler(sig, frame):
     """
-    Gestisce i segnali di termination (SIGTERM, SIGINT).
-    Imposta il flag di shutdown in modo che il worker termini gracefully.
+    Handles termination signals (SIGTERM, SIGINT).
+    Sets the shutdown flag so the worker terminates gracefully.
     """
     global shutdown_requested
     signal_name = signal.Signals(sig).name if hasattr(signal, 'Signals') else str(sig)
-    logger.warning(f"🛑 Segnale {signal_name} ricevuto. Avvio shutdown graceful...")
-    logger.info("Il worker terminerà il task corrente (se presente) e farà un ultimo push.")
+    logger.warning(f"🛑 Signal {signal_name} received. Starting graceful shutdown...")
+    logger.info("Worker will complete current task (if any) and do a final push.")
     shutdown_requested = True
 
 def main():
-    """Main loop del worker."""
+    """Main worker loop."""
     logger.info("=" * 60)
-    logger.info("🚀 D-GRID Worker Node - Avvio")
+    logger.info("🚀 D-GRID Worker Node - Starting")
     logger.info(f"   Node ID: {NODE_ID}")
     logger.info("=" * 60)
     
-    # Valida la configurazione all'avvio
+    # Validate configuration at startup
     config_errors = validate_config()
     if config_errors:
-        logger.error("❌ Errori di configurazione rilevati:")
+        logger.error("❌ Configuration errors detected:")
         for error in config_errors:
             logger.error(f"   - {error}")
-        logger.error("Impossibile avviare il worker. Correggi gli errori di configurazione.")
+        logger.error("Cannot start worker. Fix configuration errors.")
         sys.exit(1)
     
-    logger.info("✅ Configurazione validata.")
+    logger.info("✅ Configuration validated.")
     
-    # Registra i signal handlers
+    # Register signal handlers
     signal.signal(signal.SIGTERM, signal_handler)
     signal.signal(signal.SIGINT, signal_handler)
     
-    # Inizializza i componenti
+    # Initialize components
     git_handler = get_git_handler()
     if not git_handler:
-        logger.error("Impossibile inizializzare Git Handler. Uscita.")
+        logger.error("Unable to initialize Git Handler. Exiting.")
         sys.exit(1)
     
     state_manager = StateManager(git_handler)
     task_runner = TaskRunner(git_handler)
     
-    # Registra il nodo
+    # Register the node
     if not state_manager.register_node():
-        logger.error("Impossibile registrare il nodo. Uscita.")
+        logger.error("Unable to register node. Exiting.")
         sys.exit(1)
     
-    logger.info("✅ Nodo registrato e pronto.")
+    logger.info("✅ Node registered and ready.")
     
-    # Avvia il web server per la dashboard locale
-    logger.info("Avvio web server locale...")
+    # Start the web server for local dashboard
+    logger.info("Starting local web server...")
     try:
         start_web_server()
-        logger.info("✅ Web server avviato su http://0.0.0.0:8000")
+        logger.info("✅ Web server started on http://0.0.0.0:8000")
     except Exception as e:
-        logger.warning(f"⚠️  Non è stato possibile avviare il web server: {e}")
+        logger.warning(f"⚠️  Unable to start web server: {e}")
     
-    logger.info("Avvio loop principale...")
+    logger.info("Starting main loop...")
     logger.info("-" * 60)
     
-    # Loop principale con gestione race condition e retry
+    # Main loop with race condition and retry handling
     try:
         while not shutdown_requested:
             try:
-                # Pull dello stato più recente (SEMPRE il primo passo)
-                logger.debug("Pull dello stato più recente...")
+                # Pull the latest state (ALWAYS the first step)
+                logger.debug("Pulling latest state...")
                 if not git_handler.pull_rebase():
-                    logger.warning("Pull fallito, ritentando tra %ds...", PULL_INTERVAL)
+                    logger.warning("Pull failed, retrying in %ds...", PULL_INTERVAL)
                     time.sleep(PULL_INTERVAL)
                     continue
                 
-                # Cerca un task da eseguire
+                # Look for a task to execute
                 task_file = task_runner.find_task_to_run()
                 
                 if task_file:
-                    # Esegui il task
-                    logger.info(f"Esecuzione task: {task_file.name}")
+                    # Execute the task
+                    logger.info(f"Executing task: {task_file.name}")
                     result = task_runner.execute_task(task_file)
                     
-                    # Riporta il risultato (operazione critica)
-                    logger.info(f"Reporting risultato: exit_code={result['exit_code']}")
+                    # Report the result (critical operation)
+                    logger.info(f"Reporting result: exit_code={result['exit_code']}")
                     if not task_runner.report_task_result(task_file, result):
-                        logger.error("Fallito il report del risultato. Task potrebbe rimanere orfano.")
-                        # Nota: Il task è già stato spostato localmente, ma il push è fallito.
-                        # Fare un reset per coerenza con lo stato remoto.
-                        logger.warning("Reset dello stato locale dopo fallimento report...")
-                        git_handler.pull_rebase()  # Reacquisire lo stato remoto
+                        logger.error("Failed to report result. Task may remain orphaned.")
+                        # Note: Task has already been moved locally, but push failed.
+                        # Do a reset for consistency with remote state.
+                        logger.warning("Resetting local state after report failure...")
+                        git_handler.pull_rebase()  # Reacquire remote state
                 else:
-                    # Nessun task, invia heartbeat
-                    logger.debug("Nessun task disponibile, invio heartbeat...")
+                    # No task, send heartbeat
+                    logger.debug("No task available, sending heartbeat...")
                     state_manager.send_heartbeat()
                 
-                # Sleep prima del prossimo ciclo
+                # Sleep before next cycle
                 logger.debug(f"Sleep {PULL_INTERVAL}s...")
                 time.sleep(PULL_INTERVAL)
             
             except Exception as e:
-                # Cattura TUTTI gli errori del loop
-                logger.error(f"Errore nel loop principale: {e}", exc_info=True)
-                logger.warning("Esecuzione reset dello stato locale e ritentativo...")
+                # Catch ALL loop errors
+                logger.error(f"Error in main loop: {e}", exc_info=True)
+                logger.warning("Executing reset of local state and retrying...")
                 
-                # Reset locale per evitare stati inconsistenti
+                # Local reset to avoid inconsistent states
                 try:
                     git_handler.pull_rebase()
                 except Exception as reset_error:
-                    logger.error(f"Fallito il reset durante recovery: {reset_error}")
+                    logger.error(f"Failed reset during recovery: {reset_error}")
                 
-                # Sleep prima di ricominciare
+                # Sleep before restarting
                 time.sleep(PULL_INTERVAL)
     
     except KeyboardInterrupt:
-        logger.info("Keyboard interrupt ricevuto.")
+        logger.info("Keyboard interrupt received.")
     
     finally:
         logger.info("-" * 60)
-        logger.info("🛑 SHUTDOWN SEQUENZA AVVIATA")
-        logger.info("Invio dell'ultimo heartbeat prima di uscire...")
+        logger.info("🛑 SHUTDOWN SEQUENCE STARTED")
+        logger.info("Sending last heartbeat before exiting...")
         try:
             state_manager.send_heartbeat()
-            logger.info("✅ Ultimo heartbeat inviato.")
+            logger.info("✅ Last heartbeat sent.")
         except Exception as e:
-            logger.warning(f"Fallito l'invio dell'ultimo heartbeat: {e}")
+            logger.warning(f"Failed to send last heartbeat: {e}")
         
-        logger.info("✅ Worker shutdown completato.")
+        logger.info("✅ Worker shutdown complete.")
         logger.info("=" * 60)
 
 

@@ -1,6 +1,6 @@
 """
 D-GRID Task Runner Module
-Gestisce il riconoscimento, l'esecuzione e il reporting dei task.
+Manages task recognition, execution, and reporting.
 """
 import json
 import subprocess
@@ -135,9 +135,9 @@ class TaskRunner:
                 "sh", "-c", task_script
             ]
             
-            logger.debug(f"Docker isolamento: network=none, read-only, user=1000:1000, pids-limit=10")
+            logger.debug(f"Docker isolation: network=none, read-only, user=1000:1000, pids-limit=10")
             
-            # Esegui il comando con timeout aggressivo
+            # Execute command with aggressive timeout
             try:
                 result = subprocess.run(
                     docker_cmd,
