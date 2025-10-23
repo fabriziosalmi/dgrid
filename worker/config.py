@@ -1,6 +1,6 @@
 """
 D-GRID Worker Configuration Module
-Gestisce tutte le configurazioni globali del nodo worker.
+Manages all global configuration for the worker node.
 """
 import os
 import socket

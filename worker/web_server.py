@@ -2,11 +2,11 @@
 """
 D-GRID Worker Node - Local Dashboard Web Server
 
-Espone una UI locale su localhost:8000 che mostra:
-- Info del nodo (ID, uptime, status)
-- Vista della rete dal punto di vista del worker
-- Task locali e stato
-- Health check dell'infrastruttura
+Exposes a local UI on localhost:8000 that shows:
+- Node info (ID, uptime, status)
+- Network view from the worker's perspective
+- Local tasks and status
+- Infrastructure health check
 """
 
 import json
@@ -28,10 +28,10 @@ PORT = 8000
 
 
 class WorkerDashboardHandler(BaseHTTPRequestHandler):
-    """Handler HTTP per la dashboard del worker"""
+    """HTTP handler for the worker dashboard"""
 
     def do_GET(self):
-        """Gestisce richieste GET"""
+        """Handles GET requests"""
         if self.path == "/" or self.path == "/index.html":
             self.serve_dashboard()
         elif self.path == "/api/status":
@@ -42,7 +42,7 @@ class WorkerDashboardHandler(BaseHTTPRequestHandler):
             self.send_error(404)
 
     def serve_dashboard(self):
-        """Serve l'HTML della dashboard"""
+        """Serves the dashboard HTML"""
         html = self.generate_dashboard_html()
         self.send_response(200)
         self.send_header("Content-type", "text/html; charset=utf-8")
@@ -51,7 +51,7 @@ class WorkerDashboardHandler(BaseHTTPRequestHandler):
         self.wfile.write(html.encode("utf-8"))
 
     def serve_status_json(self):
-        """Serve lo stato del nodo come JSON"""
+        """Serves the node status as JSON"""
         status = self.get_node_status()
         json_str = json.dumps(status, indent=2, default=str)
         self.send_response(200)
@@ -68,16 +68,15 @@ class WorkerDashboardHandler(BaseHTTPRequestHandler):
         self.wfile.write(b"OK")
 
     def generate_dashboard_html(self):
-        """Genera l'HTML della dashboard del worker"""
+        """Generates the worker dashboard HTML"""
         status = self.get_node_status()
 
         html = f"""<!DOCTYPE html>
-<html lang="it">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>D-GRID Worker: {NODE_ID}</title>
-    <html lang="en">
     <style>
         * {{
             margin: 0;
@@ -337,7 +336,7 @@ class WorkerDashboardHandler(BaseHTTPRequestHandler):
     </div>
     
     <script>
-        // Auto-refresh ogni 5 secondi
+        // Auto-refresh every 5 seconds
         setTimeout(() => location.reload(), 5000);
     </script>
 </body>
@@ -346,7 +345,7 @@ class WorkerDashboardHandler(BaseHTTPRequestHandler):
         return html
 
     def get_node_status(self):
-        """Raccoglie lo stato del nodo"""
+        """Collects the node status"""
         node_file = REPO_PATH / "nodes" / f"{NODE_ID}.json"
         is_active = False
         uptime = "N/A"
@@ -358,18 +357,18 @@ class WorkerDashboardHandler(BaseHTTPRequestHandler):
                     node_data = json.load(f)
                     last_heartbeat = node_data.get("last_heartbeat", "N/A")
                     
-                    # Calcola se è attivo (heartbeat < 5 min fa)
+                    # Calculate if active (heartbeat < 5 min ago)
                     if last_heartbeat != "N/A":
                         try:
                             ts = datetime.fromisoformat(last_heartbeat.replace("Z", "+00:00"))
                             delta = (datetime.now(timezone.utc) - ts).total_seconds()
-                            is_active = delta < 300  # 5 minuti
+                            is_active = delta < 300  # 5 minutes
                         except:
                             pass
             except:
                 pass
 
-        # Conta task
+        # Count tasks
         task_dirs = {
             "tasks_queue": REPO_PATH / "tasks" / "queue",
             "tasks_in_progress": REPO_PATH / "tasks" / "in_progress",
@@ -387,7 +386,7 @@ class WorkerDashboardHandler(BaseHTTPRequestHandler):
             else:
                 task_counts[key] = 0
 
-        # Conta nodi visibili
+        # Count visible nodes
         nodes_dir = REPO_PATH / "nodes"
         visible_nodes = len(list(nodes_dir.glob("*.json"))) if nodes_dir.exists() else 0
 
@@ -397,7 +396,7 @@ class WorkerDashboardHandler(BaseHTTPRequestHandler):
             "uptime": uptime,
             "last_heartbeat": last_heartbeat[:19] if last_heartbeat != "N/A" else "N/A",
             "repo_url": os.getenv("DGRID_REPO_URL", "N/A"),
-            "repo_status": "✅ OK" if REPO_PATH.exists() else "❌ Errore",
+            "repo_status": "✅ OK" if REPO_PATH.exists() else "❌ Error",
             "visible_nodes": visible_nodes,
             "color": "10b981" if is_active else "ef4444",
             **task_counts,
@@ -410,11 +409,11 @@ class WorkerDashboardHandler(BaseHTTPRequestHandler):
 
 
 def start_web_server():
-    """Avvia il web server in un thread separato"""
+    """Starts the web server in a separate thread"""
     server = HTTPServer(("0.0.0.0", PORT), WorkerDashboardHandler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
-    logger.info(f"🌐 Web Server avviato su http://0.0.0.0:{PORT}")
+    logger.info(f"🌐 Web Server started on http://0.0.0.0:{PORT}")
     return server
 
 
@@ -424,5 +423,5 @@ if __name__ == "__main__":
         while True:
             time.sleep(1)
     except KeyboardInterrupt:
-        logger.info("Web Server fermato.")
+        logger.info("Web Server stopped.")
         server.shutdown()

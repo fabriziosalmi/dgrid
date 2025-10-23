@@ -1,6 +1,6 @@
 """
 D-GRID Git Handler Module
-Gestisce tutte le operazioni Git (clone, pull, commit, push).
+Manages all Git operations (clone, pull, commit, push).
 """
 import os
 import subprocess

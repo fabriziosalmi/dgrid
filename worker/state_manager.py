@@ -1,6 +1,6 @@
 """
 D-GRID State Manager Module
-Gestisce la registrazione dei nodi e gli heartbeat.
+Manages node registration and heartbeats.
 """
 import json
 from datetime import datetime
