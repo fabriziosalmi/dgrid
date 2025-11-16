@@ -1,13 +1,13 @@
 {
-  "timestamp": "2025-01-01T00:00:00Z",
+  "timestamp": "2025-11-16T16:37:02.235461",
   "nodes": {
-    "total": 0,
+    "total": 1,
     "active": 0,
-    "inactive": 0
+    "inactive": 1
   },
   "tasks": {
     "queued": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "completed_last_hour": 0,
     "failed_last_hour": 0
   },
@@ -19,6 +19,6 @@
   "scaling": {
     "recommendation": "maintain",
     "confidence": "medium",
-    "reasons": ["No data available yet"]
+    "reasons": []
   }
 }
