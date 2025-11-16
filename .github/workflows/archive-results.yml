@@ -1,0 +1,176 @@
+name: Archive Old Results
+
+# Implementation of #4: Result Pagination & Archival
+# Automatically archives and compresses old task results to maintain repository performance
+
+on:
+  schedule:
+    # Run on the 1st day of each month at 00:00 UTC
+    - cron: '0 0 1 * *'
+  workflow_dispatch:
+    # Allow manual triggering
+    inputs:
+      days_old:
+        description: 'Archive results older than N days'
+        required: false
+        default: '30'
+
+permissions:
+  contents: write
+
+jobs:
+  archive-results:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for archiving
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Archive old results
+        id: archive
+        run: |
+          #!/bin/bash
+          set -e
+          
+          # Configuration
+          DAYS_OLD="${{ github.event.inputs.days_old || '30' }}"
+          ARCHIVE_DIR="archive/$(date +%Y-%m)"
+          
+          echo "📦 Archiving results older than $DAYS_OLD days..."
+          echo "Archive directory: $ARCHIVE_DIR"
+          
+          # Create archive directory
+          mkdir -p "$ARCHIVE_DIR"
+          
+          # Counter for archived files
+          archived_count=0
+          
+          # Archive completed tasks
+          if [ -d "tasks/completed" ]; then
+            echo "Processing completed tasks..."
+            for file in tasks/completed/*.json; do
+              if [ -f "$file" ]; then
+                # Check file age
+                if [ $(find "$file" -mtime +$DAYS_OLD | wc -l) -gt 0 ]; then
+                  # Move to archive
+                  mv "$file" "$ARCHIVE_DIR/"
+                  # Also move associated .log file if exists
+                  log_file="${file}.log"
+                  if [ -f "$log_file" ]; then
+                    mv "$log_file" "$ARCHIVE_DIR/"
+                  fi
+                  archived_count=$((archived_count + 1))
+                fi
+              fi
+            done
+          fi
+          
+          # Archive failed tasks
+          if [ -d "tasks/failed" ]; then
+            echo "Processing failed tasks..."
+            for file in tasks/failed/*.json; do
+              if [ -f "$file" ]; then
+                # Check file age
+                if [ $(find "$file" -mtime +$DAYS_OLD | wc -l) -gt 0 ]; then
+                  # Move to archive
+                  mv "$file" "$ARCHIVE_DIR/"
+                  # Also move associated .log file if exists
+                  log_file="${file}.log"
+                  if [ -f "$log_file" ]; then
+                    mv "$log_file" "$ARCHIVE_DIR/"
+                  fi
+                  archived_count=$((archived_count + 1))
+                fi
+              fi
+            done
+          fi
+          
+          echo "✅ Archived $archived_count task result(s)"
+          echo "archived_count=$archived_count" >> $GITHUB_OUTPUT
+          
+          # Compress archive if not empty
+          if [ $archived_count -gt 0 ]; then
+            echo "Compressing archive..."
+            cd archive
+            tar -czf "$(basename $ARCHIVE_DIR).tar.gz" "$(basename $ARCHIVE_DIR)"
+            rm -rf "$(basename $ARCHIVE_DIR)"
+            echo "✅ Archive compressed: $(basename $ARCHIVE_DIR).tar.gz"
+          fi
+      
+      - name: Create archive manifest
+        if: steps.archive.outputs.archived_count > 0
+        run: |
+          cat > archive/MANIFEST.md << EOF
+          # D-GRID Archive Manifest
+          
+          ## Archive: $(date +%Y-%m)
+          
+          **Created:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          **Files archived:** ${{ steps.archive.outputs.archived_count }}
+          **Retention policy:** Results older than ${{ github.event.inputs.days_old || '30' }} days
+          
+          ### Archive Contents
+          
+          This archive contains task results (completed and failed) from the D-GRID system.
+          Each archive is a compressed tarball containing JSON task files and their associated logs.
+          
+          ### Accessing Archives
+          
+          To extract an archive:
+          \`\`\`bash
+          tar -xzf YYYY-MM.tar.gz
+          \`\`\`
+          
+          ### Archive Retention
+          
+          Archives are kept indefinitely in the repository. To retrieve old results:
+          1. Extract the appropriate archive
+          2. Review task results in JSON format
+          3. Check associated .log files for execution details
+          
+          EOF
+      
+      - name: Commit and push changes
+        if: steps.archive.outputs.archived_count > 0
+        run: |
+          git config user.name "D-GRID Archiver"
+          git config user.email "dgrid-bot@users.noreply.github.com"
+          
+          git add archive/
+          git add tasks/completed/ tasks/failed/ || true
+          
+          git commit -m "[Archive] Archived ${{ steps.archive.outputs.archived_count }} results from $(date +%Y-%m)"
+          git push
+          
+          echo "✅ Changes committed and pushed"
+      
+      - name: Generate archive report
+        if: steps.archive.outputs.archived_count > 0
+        run: |
+          echo "## 📦 Archive Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Date:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> $GITHUB_STEP_SUMMARY
+          echo "**Files archived:** ${{ steps.archive.outputs.archived_count }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Archive location:** archive/$(date +%Y-%m).tar.gz" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Repository Health" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Old results archived successfully" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Repository performance maintained" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Long-term history preserved" >> $GITHUB_STEP_SUMMARY
+      
+      - name: No files to archive
+        if: steps.archive.outputs.archived_count == 0
+        run: |
+          echo "## 📦 Archive Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Date:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> $GITHUB_STEP_SUMMARY
+          echo "**Files archived:** 0" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "ℹ️ No results older than ${{ github.event.inputs.days_old || '30' }} days found." >> $GITHUB_STEP_SUMMARY

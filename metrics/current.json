@@ -1,0 +1,24 @@
+{
+  "timestamp": "2025-01-01T00:00:00Z",
+  "nodes": {
+    "total": 0,
+    "active": 0,
+    "inactive": 0
+  },
+  "tasks": {
+    "queued": 0,
+    "in_progress": 0,
+    "completed_last_hour": 0,
+    "failed_last_hour": 0
+  },
+  "performance": {
+    "avg_queue_time": 0,
+    "avg_execution_time": 0,
+    "tasks_per_worker": 0
+  },
+  "scaling": {
+    "recommendation": "maintain",
+    "confidence": "medium",
+    "reasons": ["No data available yet"]
+  }
+}

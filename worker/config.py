@@ -34,6 +34,16 @@ DOCKER_TIMEOUT = int(os.getenv("DOCKER_TIMEOUT", "3600"))  # secondi
 PULL_INTERVAL = int(os.getenv("PULL_INTERVAL", "10"))  # secondi tra i pull
 HEARTBEAT_INTERVAL = int(os.getenv("HEARTBEAT_INTERVAL", "60"))  # secondi tra gli heartbeat
 
+# === Performance & Optimization (Phase 1 Improvements) ===
+USE_SHALLOW_CLONE = os.getenv("USE_SHALLOW_CLONE", "true").lower() == "true"  # #5: Optimize Git Ops
+USE_SMART_POLLING = os.getenv("USE_SMART_POLLING", "true").lower() == "true"  # #6: Local Task Cache
+MAX_PARALLEL_TASKS = int(os.getenv("MAX_PARALLEL_TASKS", "1"))  # #7: Parallel execution (Phase 3)
+
+# === Resource Quotas & Rate Limiting (#10) ===
+MAX_TASKS_PER_HOUR = int(os.getenv("MAX_TASKS_PER_HOUR", "0"))  # 0 = unlimited
+MAX_CPU_PERCENT = int(os.getenv("MAX_CPU_PERCENT", "80"))  # Maximum CPU usage threshold
+MAX_MEMORY_PERCENT = int(os.getenv("MAX_MEMORY_PERCENT", "80"))  # Maximum memory usage threshold
+
 # === Logging ===
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 LOG_FILE = os.getenv("LOG_FILE", "/tmp/d-grid-worker.log")
@@ -127,6 +137,22 @@ def validate_config():
     valid_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
     if LOG_LEVEL not in valid_levels:
         errors.append(f"LOG_LEVEL non valido: '{LOG_LEVEL}'. Usa uno di: {', '.join(valid_levels)}")
+    
+    # Validazione Phase 1 improvements
+    if MAX_PARALLEL_TASKS < 1:
+        errors.append(f"MAX_PARALLEL_TASKS deve essere >= 1, trovato: {MAX_PARALLEL_TASKS}")
+    
+    if MAX_PARALLEL_TASKS > 10:
+        errors.append(f"MAX_PARALLEL_TASKS sembra troppo alto: {MAX_PARALLEL_TASKS} (max consigliato: 10)")
+    
+    if MAX_TASKS_PER_HOUR < 0:
+        errors.append(f"MAX_TASKS_PER_HOUR deve essere >= 0, trovato: {MAX_TASKS_PER_HOUR}")
+    
+    if MAX_CPU_PERCENT < 1 or MAX_CPU_PERCENT > 100:
+        errors.append(f"MAX_CPU_PERCENT deve essere 1-100, trovato: {MAX_CPU_PERCENT}")
+    
+    if MAX_MEMORY_PERCENT < 1 or MAX_MEMORY_PERCENT > 100:
+        errors.append(f"MAX_MEMORY_PERCENT deve essere 1-100, trovato: {MAX_MEMORY_PERCENT}")
     
     return errors
 

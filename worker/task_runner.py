@@ -11,6 +11,7 @@ from config import NODE_ID, DOCKER_CPUS, DOCKER_MEMORY, DOCKER_TIMEOUT
 
 logger = get_logger("task_runner")
 
+
 class TaskRunner:
     """Runner per l'esecuzione dei task."""
     
@@ -21,6 +22,16 @@ class TaskRunner:
         self.in_progress_dir = self.repo_path / "tasks" / "in_progress"
         self.completed_dir = self.repo_path / "tasks" / "completed"
         self.failed_dir = self.repo_path / "tasks" / "failed"
+        
+        # Initialize task signing (#9: Task Signing & Verification)
+        self.task_signer = None
+        try:
+            from task_signing import get_task_signer
+            self.task_signer = get_task_signer()
+            if self.task_signer.is_enabled():
+                logger.info(f"🔐 Task signing enabled with {self.task_signer.get_trusted_keys_count()} trusted keys")
+        except Exception as e:
+            logger.warning(f"Could not initialize task signer: {e}")
     
     def find_task_to_run(self):
         """
@@ -90,6 +101,16 @@ class TaskRunner:
             if not task_file.exists():
                 logger.error(f"File del task non esiste: {task_file}")
                 return {"exit_code": -1, "stdout": "", "stderr": "File non trovato"}
+            
+            # Verify task signature (#9: Task Signing & Verification)
+            if self.task_signer and self.task_signer.is_enabled():
+                if not self.task_signer.verify_task(task_file):
+                    logger.error(f"❌ Task signature verification failed: {task_file.name}")
+                    return {
+                        "exit_code": -1,
+                        "stdout": "",
+                        "stderr": "Task signature verification failed - task rejected for security"
+                    }
             
             # Leggi il file del task
             with open(task_file, "r") as f:
