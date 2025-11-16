@@ -1,0 +1,345 @@
+name: Collect Metrics & Auto-Scaling Signals
+
+# Implementation of #3: Worker Auto-Scaling Signals
+# Collects metrics and displays scaling recommendations in the dashboard
+
+on:
+  schedule:
+    # Run every 5 minutes
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  collect-metrics:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Collect system metrics
+        id: metrics
+        run: |
+          python3 << 'EOF'
+          import json
+          import os
+          from pathlib import Path
+          from datetime import datetime, timedelta
+          
+          # Paths
+          nodes_dir = Path("nodes")
+          tasks_dir = Path("tasks")
+          metrics_file = Path("metrics/current.json")
+          
+          # Initialize metrics
+          metrics = {
+              "timestamp": datetime.utcnow().isoformat(),
+              "nodes": {
+                  "total": 0,
+                  "active": 0,
+                  "inactive": 0
+              },
+              "tasks": {
+                  "queued": 0,
+                  "in_progress": 0,
+                  "completed_last_hour": 0,
+                  "failed_last_hour": 0
+              },
+              "performance": {
+                  "avg_queue_time": 0,
+                  "avg_execution_time": 0,
+                  "tasks_per_worker": 0
+              },
+              "scaling": {
+                  "recommendation": "maintain",
+                  "confidence": "medium",
+                  "reasons": []
+              }
+          }
+          
+          # Count nodes
+          if nodes_dir.exists():
+              for node_file in nodes_dir.glob("*.json"):
+                  metrics["nodes"]["total"] += 1
+                  try:
+                      with open(node_file) as f:
+                          node_data = json.load(f)
+                      last_heartbeat = datetime.fromisoformat(node_data.get("last_heartbeat", "2000-01-01T00:00:00"))
+                      if datetime.utcnow() - last_heartbeat < timedelta(minutes=5):
+                          metrics["nodes"]["active"] += 1
+                      else:
+                          metrics["nodes"]["inactive"] += 1
+                  except:
+                      pass
+          
+          # Count tasks by status
+          queue_paths = [
+              tasks_dir / "queue",
+              tasks_dir / "queue" / "critical",
+              tasks_dir / "queue" / "high", 
+              tasks_dir / "queue" / "medium",
+              tasks_dir / "queue" / "low"
+          ]
+          
+          for queue_path in queue_paths:
+              if queue_path.exists():
+                  # Count JSON files directly
+                  json_files = list(queue_path.glob("*.json"))
+                  metrics["tasks"]["queued"] += len(json_files)
+                  
+                  # Also count in subdirectories (shards)
+                  for shard_dir in queue_path.iterdir():
+                      if shard_dir.is_dir():
+                          metrics["tasks"]["queued"] += len(list(shard_dir.glob("*.json")))
+          
+          if (tasks_dir / "in_progress").exists():
+              metrics["tasks"]["in_progress"] = len(list((tasks_dir / "in_progress").glob("*.json")))
+          
+          # Count recent completions
+          cutoff_time = datetime.utcnow() - timedelta(hours=1)
+          
+          if (tasks_dir / "completed").exists():
+              for task_file in (tasks_dir / "completed").glob("*.json"):
+                  if task_file.stat().st_mtime > cutoff_time.timestamp():
+                      metrics["tasks"]["completed_last_hour"] += 1
+          
+          if (tasks_dir / "failed").exists():
+              for task_file in (tasks_dir / "failed").glob("*.json"):
+                  if task_file.stat().st_mtime > cutoff_time.timestamp():
+                      metrics["tasks"]["failed_last_hour"] += 1
+          
+          # Calculate performance metrics
+          if metrics["nodes"]["active"] > 0:
+              metrics["performance"]["tasks_per_worker"] = round(
+                  (metrics["tasks"]["completed_last_hour"] + metrics["tasks"]["failed_last_hour"]) / 
+                  metrics["nodes"]["active"], 2
+              )
+          
+          # Generate scaling recommendation
+          active_workers = metrics["nodes"]["active"]
+          queued_tasks = metrics["tasks"]["queued"]
+          in_progress = metrics["tasks"]["in_progress"]
+          
+          reasons = []
+          
+          # Rule 1: High queue depth
+          if queued_tasks > active_workers * 5:
+              metrics["scaling"]["recommendation"] = "scale_up"
+              metrics["scaling"]["confidence"] = "high"
+              reasons.append(f"Queue depth ({queued_tasks}) exceeds 5x active workers ({active_workers})")
+          
+          # Rule 2: Queue growing
+          elif queued_tasks > active_workers * 2:
+              metrics["scaling"]["recommendation"] = "scale_up"
+              metrics["scaling"]["confidence"] = "medium"
+              reasons.append(f"Queue depth ({queued_tasks}) exceeds 2x active workers ({active_workers})")
+          
+          # Rule 3: No workers available
+          elif active_workers == 0 and queued_tasks > 0:
+              metrics["scaling"]["recommendation"] = "scale_up"
+              metrics["scaling"]["confidence"] = "high"
+              reasons.append("No active workers but tasks in queue")
+          
+          # Rule 4: Empty queue with many workers
+          elif queued_tasks == 0 and in_progress == 0 and active_workers > 1:
+              metrics["scaling"]["recommendation"] = "scale_down"
+              metrics["scaling"]["confidence"] = "medium"
+              reasons.append(f"No tasks but {active_workers} workers active")
+          
+          # Rule 5: Optimal state
+          elif queued_tasks <= active_workers and active_workers > 0:
+              metrics["scaling"]["recommendation"] = "maintain"
+              metrics["scaling"]["confidence"] = "high"
+              reasons.append("Task load well-balanced with worker count")
+          
+          metrics["scaling"]["reasons"] = reasons
+          
+          # Save metrics
+          metrics_file.parent.mkdir(exist_ok=True)
+          with open(metrics_file, 'w') as f:
+              json.dump(metrics, f, indent=2)
+          
+          print(f"✅ Metrics collected: {metrics}")
+          
+          # Output for GitHub Actions
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f"recommendation={metrics['scaling']['recommendation']}\n")
+              f.write(f"queued_tasks={metrics['tasks']['queued']}\n")
+              f.write(f"active_workers={metrics['nodes']['active']}\n")
+              f.write(f"completed_last_hour={metrics['tasks']['completed_last_hour']}\n")
+          EOF
+      
+      - name: Update metrics dashboard
+        run: |
+          cat > docs/metrics.html << 'EOF'
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>D-GRID Metrics & Auto-Scaling</title>
+              <style>
+                  body {
+                      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                      line-height: 1.6;
+                      max-width: 1200px;
+                      margin: 0 auto;
+                      padding: 20px;
+                      background: #f5f5f5;
+                  }
+                  .header {
+                      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                      color: white;
+                      padding: 30px;
+                      border-radius: 10px;
+                      margin-bottom: 20px;
+                  }
+                  .metric-grid {
+                      display: grid;
+                      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+                      gap: 20px;
+                      margin-bottom: 20px;
+                  }
+                  .metric-card {
+                      background: white;
+                      padding: 20px;
+                      border-radius: 8px;
+                      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                  }
+                  .metric-value {
+                      font-size: 2.5em;
+                      font-weight: bold;
+                      color: #667eea;
+                  }
+                  .metric-label {
+                      color: #666;
+                      margin-top: 5px;
+                  }
+                  .recommendation {
+                      background: white;
+                      padding: 20px;
+                      border-radius: 8px;
+                      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                      margin-bottom: 20px;
+                  }
+                  .scale-up {
+                      border-left: 5px solid #f59e0b;
+                  }
+                  .scale-down {
+                      border-left: 5px solid #3b82f6;
+                  }
+                  .maintain {
+                      border-left: 5px solid #10b981;
+                  }
+              </style>
+          </head>
+          <body>
+              <div class="header">
+                  <h1>📊 D-GRID Metrics & Auto-Scaling</h1>
+                  <p>Real-time system metrics and scaling recommendations</p>
+              </div>
+              
+              <div id="metrics-container">
+                  Loading metrics...
+              </div>
+              
+              <script>
+                  async function loadMetrics() {
+                      try {
+                          const response = await fetch('../metrics/current.json');
+                          const metrics = await response.json();
+                          
+                          const container = document.getElementById('metrics-container');
+                          
+                          // Scaling recommendation
+                          let recClass = 'maintain';
+                          let recIcon = '✅';
+                          let recText = 'Maintain Current Scale';
+                          
+                          if (metrics.scaling.recommendation === 'scale_up') {
+                              recClass = 'scale-up';
+                              recIcon = '📈';
+                              recText = 'Scale Up Recommended';
+                          } else if (metrics.scaling.recommendation === 'scale_down') {
+                              recClass = 'scale-down';
+                              recIcon = '📉';
+                              recText = 'Scale Down Recommended';
+                          }
+                          
+                          container.innerHTML = `
+                              <div class="recommendation ${recClass}">
+                                  <h2>${recIcon} ${recText}</h2>
+                                  <p><strong>Confidence:</strong> ${metrics.scaling.confidence}</p>
+                                  <ul>
+                                      ${metrics.scaling.reasons.map(r => `<li>${r}</li>`).join('')}
+                                  </ul>
+                              </div>
+                              
+                              <div class="metric-grid">
+                                  <div class="metric-card">
+                                      <div class="metric-value">${metrics.nodes.active}</div>
+                                      <div class="metric-label">Active Workers</div>
+                                  </div>
+                                  <div class="metric-card">
+                                      <div class="metric-value">${metrics.tasks.queued}</div>
+                                      <div class="metric-label">Queued Tasks</div>
+                                  </div>
+                                  <div class="metric-card">
+                                      <div class="metric-value">${metrics.tasks.in_progress}</div>
+                                      <div class="metric-label">In Progress</div>
+                                  </div>
+                                  <div class="metric-card">
+                                      <div class="metric-value">${metrics.tasks.completed_last_hour}</div>
+                                      <div class="metric-label">Completed (1h)</div>
+                                  </div>
+                                  <div class="metric-card">
+                                      <div class="metric-value">${metrics.performance.tasks_per_worker}</div>
+                                      <div class="metric-label">Tasks/Worker (1h)</div>
+                                  </div>
+                                  <div class="metric-card">
+                                      <div class="metric-value">${new Date(metrics.timestamp).toLocaleString()}</div>
+                                      <div class="metric-label">Last Updated</div>
+                                  </div>
+                              </div>
+                          `;
+                      } catch (error) {
+                          console.error('Error loading metrics:', error);
+                          document.getElementById('metrics-container').innerHTML = 
+                              '<p>Error loading metrics. Please try again later.</p>';
+                      }
+                  }
+                  
+                  loadMetrics();
+                  setInterval(loadMetrics, 60000); // Refresh every minute
+              </script>
+          </body>
+          </html>
+          EOF
+      
+      - name: Commit metrics
+        run: |
+          git config user.name "D-GRID Metrics"
+          git config user.email "dgrid-metrics@users.noreply.github.com"
+          
+          git add metrics/ docs/metrics.html
+          git commit -m "[Metrics] Update at $(date -u +"%Y-%m-%d %H:%M UTC")" || echo "No changes to commit"
+          git push || echo "Nothing to push"
+      
+      - name: Generate report
+        run: |
+          echo "## 📊 Metrics Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Recommendation:** ${{ steps.metrics.outputs.recommendation }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Active Workers:** ${{ steps.metrics.outputs.active_workers }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Queued Tasks:** ${{ steps.metrics.outputs.queued_tasks }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Completed (1h):** ${{ steps.metrics.outputs.completed_last_hour }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "View full metrics at: https://YOUR_USERNAME.github.io/dgrid/metrics.html" >> $GITHUB_STEP_SUMMARY
