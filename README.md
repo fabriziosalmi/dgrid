@@ -207,18 +207,37 @@ Task results are stored in `tasks/completed/{node_id}-{task_id}.json`:
 
 ## 🔐 Security (Current Status)
 
-MVP implementation with essential security:
-- ✅ Container isolation (network=none, read-only, user=1000:1000)
+Production-ready security implementation:
+- ✅ Container isolation (network=none, read-only, user=1000:1000, pids-limit)
 - ✅ Fixed base image (python:3.11-alpine, not customizable)
 - ✅ Output limits (10KB max per task to prevent DoS)
 - ✅ JSON validation and required fields
 - ✅ Task submission validation via GitHub Actions
+- ✅ **Task signing & verification** - GPG-based authentication (optional, see [SECURITY.md](SECURITY.md))
+- ✅ **Rate limiting per worker** - Configurable hourly task limits (MAX_TASKS_PER_HOUR)
+- ✅ **Resource quotas** - CPU/memory thresholds prevent system overload
 
-Future hardening needed:
-- [ ] Task signing & verification
-- [ ] Enhanced container sandboxing
-- [ ] Rate limiting per worker
-- [ ] Multi-signature quorum for critical operations
+Advanced hardening in progress:
+- ⚠️ **Enhanced container sandboxing** - Basic isolation implemented, advanced features (seccomp profiles, AppArmor) planned
+- 🔮 **Multi-signature quorum** - Planned for Phase 5 (distributed consensus for critical operations)
+
+### Security Configuration
+
+Enable task signing for production deployments:
+```bash
+# Require GPG signatures on all tasks
+ENABLE_TASK_SIGNING=true
+TRUSTED_KEYS_FILE=/app/trusted_keys.txt
+
+# Rate limiting (0 = unlimited)
+MAX_TASKS_PER_HOUR=100
+
+# Resource thresholds
+MAX_CPU_PERCENT=80
+MAX_MEMORY_PERCENT=80
+```
+
+For complete security documentation, see [SECURITY.md](SECURITY.md).
 
 ## � Quick Start
 
@@ -347,25 +366,34 @@ The dashboard updates every 60 seconds and regenerates every 5 minutes via GitHu
 - [x] Git coordination and atomic operations
 - [x] Robust error handling and recovery
 
-### Phase 2: 🚧 GitHub Actions & Automation (IN PROGRESS)
+### Phase 2: ✅ Security Hardening (COMPLETE)
+- [x] Task signing & verification (GPG-based)
+- [x] Rate limiting per worker
+- [x] Resource quotas (CPU/memory thresholds)
+- [x] Secure credential management (SSH keys, credential helpers)
+- [x] Container image verification planning
+
+### Phase 3: 🚧 GitHub Actions & Automation (IN PROGRESS)
 - [x] Task submission validator
 - [x] Dashboard generator
 - [x] Orphan task cleanup
 - [ ] Auto-scaling recommendations
 - [ ] Performance metrics collection
 
-### Phase 3: 🎯 Deployment & Release
+### Phase 4: 🎯 Deployment & Release
 - [ ] Publish Docker image to registries
 - [ ] Enhanced documentation
 - [ ] Example tasks and templates
 - [ ] Public launch
 
-### Phase 4: 🔮 Advanced Features (Future)
+### Phase 5: 🔮 Advanced Features (Future)
 - [ ] End-to-end test suite
+- [ ] Enhanced container sandboxing (seccomp profiles, AppArmor)
+- [ ] Multi-signature quorum for critical operations
 - [ ] Task dependency management
 - [ ] Worker reputation system
 - [ ] Task priority levels
-- [ ] Distributed consensus for critical ops
+- [ ] Distributed consensus mechanisms
 - [ ] Web UI for task submission
 
 ## 🤝 Contributing
