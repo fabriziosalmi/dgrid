@@ -50,6 +50,22 @@ class GitHandler:
         self.repo_path = Path(REPO_PATH)
         self.repo = None
         self.last_remote_hash = None  # Cache for smart polling
+        self.credential_manager = None
+        
+        # Initialize credential manager (#12: Secure Credential Management)
+        try:
+            from credential_manager import get_credential_manager
+            self.credential_manager = get_credential_manager()
+            
+            # Log security recommendations
+            recommendations = self.credential_manager.get_security_recommendations()
+            for rec in recommendations:
+                if "CRITICAL" in rec or "WARNING" in rec:
+                    logger.warning(rec)
+                else:
+                    logger.info(rec)
+        except Exception as e:
+            logger.warning(f"Could not initialize credential manager: {e}")
     
     def clone_or_open_repo(self, use_shallow_clone=True):
         """
@@ -75,7 +91,12 @@ class GitHandler:
                     shutil.rmtree(self.repo_path)
                 
                 logger.info(f"Clonazione repository da {REPO_URL}...")
-                git_url = get_git_auth_url()
+                
+                # Use credential manager for secure authentication (#12)
+                if self.credential_manager:
+                    git_url = self.credential_manager.configure_git_credentials(REPO_URL)
+                else:
+                    git_url = get_git_auth_url()
                 
                 # Use shallow clone for performance (#5: Optimize Git Operations)
                 if use_shallow_clone:
