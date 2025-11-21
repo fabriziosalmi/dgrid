@@ -118,11 +118,13 @@ def cleanup_orphan_tasks(nodes_status):
         queue_dir.mkdir(parents=True, exist_ok=True)
         # Create .gitkeep to ensure the directory is tracked by git
         gitkeep_path = queue_dir / ".gitkeep"
-        gitkeep_path.touch()
+        if not gitkeep_path.exists():
+            gitkeep_path.touch()
 
     # Identify active nodes and build a mapping of all known node IDs
     active_node_ids = {node['node_id'] for node in nodes_status if node['status'] == "🟢 ACTIVE"}
-    all_node_ids = {node['node_id'] for node in nodes_status}
+    # Sort node IDs by length (descending) to match longer IDs first and avoid prefix issues
+    all_node_ids = sorted({node['node_id'] for node in nodes_status}, key=len, reverse=True)
     cleaned_tasks = []
 
     for task_file in in_progress_dir.glob("*.json"):
@@ -135,7 +137,7 @@ def cleanup_orphan_tasks(nodes_status):
             node_id_in_charge = None
             task_name = None
             
-            # Try to match against all known node IDs
+            # Try to match against all known node IDs (sorted by length to prefer longer matches)
             for node_id in all_node_ids:
                 if filename.startswith(f"{node_id}-"):
                     node_id_in_charge = node_id
