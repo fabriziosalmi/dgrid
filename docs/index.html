@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="it">
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="refresh" content="60">
@@ -12,119 +12,46 @@
             box-sizing: border-box;
         }
         
-        @keyframes scanline {
-            0% { transform: translateY(-100%); }
-            100% { transform: translateY(100vh); }
-        }
-        
-        @keyframes glow {
-            0%, 100% { text-shadow: 0 0 10px #0ff, 0 0 20px #0ff, 0 0 30px #0ff; }
-            50% { text-shadow: 0 0 20px #0ff, 0 0 30px #0ff, 0 0 40px #0ff; }
-        }
-        
-        @keyframes flicker {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.95; }
-        }
-        
         body {
-            font-family: 'Courier New', 'Consolas', 'Monaco', monospace;
-            background: #0a0a0f;
-            background-image: 
-                repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0, 255, 255, 0.03) 2px, rgba(0, 255, 255, 0.03) 4px),
-                radial-gradient(circle at 50% 50%, #0a0a0f 0%, #000005 100%);
-            color: #00ff9f;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
             min-height: 100vh;
             padding: 2em;
-            position: relative;
-        }
-        
-        body::before {
-            content: '';
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 2px;
-            background: linear-gradient(90deg, transparent, #0ff, transparent);
-            animation: scanline 8s linear infinite;
-            opacity: 0.1;
-            z-index: 1;
-            pointer-events: none;
         }
         
         .container {
-            max-width: 1200px;
+            max-width: 1000px;
             margin: 0 auto;
-            background: rgba(10, 15, 20, 0.85);
+            background: white;
             padding: 2.5em;
-            border-radius: 4px;
-            border: 1px solid rgba(0, 255, 255, 0.3);
-            box-shadow: 
-                0 0 20px rgba(0, 255, 255, 0.1),
-                inset 0 0 50px rgba(0, 0, 0, 0.5);
-            position: relative;
-            backdrop-filter: blur(10px);
-        }
-        
-        .container::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 1px;
-            background: linear-gradient(90deg, transparent, #0ff, transparent);
-            animation: flicker 3s infinite;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
         }
         
         .header {
             text-align: center;
             margin-bottom: 2em;
-            border-bottom: 2px solid rgba(0, 255, 255, 0.3);
+            border-bottom: 3px solid #667eea;
             padding-bottom: 1.5em;
-            position: relative;
-        }
-        
-        .header::after {
-            content: '';
-            position: absolute;
-            bottom: -2px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 100px;
-            height: 2px;
-            background: #0ff;
-            box-shadow: 0 0 10px #0ff;
         }
         
         .header h1 {
             font-size: 2.5em;
-            color: #0ff;
+            color: #333;
             margin-bottom: 0.5em;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            animation: glow 3s ease-in-out infinite;
-            font-weight: 700;
         }
         
         .header p {
-            color: #00ff9f;
+            color: #666;
             font-size: 1.1em;
             margin-bottom: 0.5em;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
         }
         
         .update-info {
-            color: #0ff;
+            color: #999;
             font-size: 0.9em;
-            font-family: 'Courier New', monospace;
-            opacity: 0.7;
-        }
-        
-        .update-info strong {
-            color: #00ff9f;
+            font-style: italic;
         }
         
         .stats {
@@ -135,117 +62,75 @@
         }
         
         .stat {
-            background: rgba(0, 20, 30, 0.6);
-            border: 1px solid rgba(0, 255, 255, 0.4);
-            color: #0ff;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
             padding: 1.5em;
-            border-radius: 4px;
+            border-radius: 8px;
             text-align: center;
-            box-shadow: 
-                0 0 10px rgba(0, 255, 255, 0.2),
-                inset 0 0 20px rgba(0, 0, 0, 0.5);
-            position: relative;
-            transition: all 0.3s ease;
-        }
-        
-        .stat:hover {
-            transform: translateY(-2px);
-            box-shadow: 
-                0 0 20px rgba(0, 255, 255, 0.4),
-                inset 0 0 20px rgba(0, 0, 0, 0.5);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
         }
         
         .stat h3 {
             font-size: 2.8em;
             margin-bottom: 0.3em;
             font-weight: 700;
-            text-shadow: 0 0 10px currentColor;
         }
         
         .stat p {
-            font-size: 0.85em;
-            opacity: 0.9;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
+            font-size: 0.95em;
+            opacity: 0.95;
         }
         
         .stat.active {
-            border-color: rgba(0, 255, 0, 0.5);
-            color: #0f0;
-        }
-        
-        .stat.active h3 {
-            color: #0f0;
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
         }
         
         .stat.queue {
-            border-color: rgba(255, 0, 255, 0.5);
-            color: #f0f;
-        }
-        
-        .stat.queue h3 {
-            color: #f0f;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
         }
         
         .stat.running {
-            border-color: rgba(0, 150, 255, 0.5);
-            color: #0af;
-        }
-        
-        .stat.running h3 {
-            color: #0af;
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
         }
         
         .stat.completed {
-            border-color: rgba(0, 255, 150, 0.5);
-            color: #0f9;
-        }
-        
-        .stat.completed h3 {
-            color: #0f9;
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
         }
         
         h2 {
-            color: #0ff;
+            color: #333;
             font-size: 1.5em;
             margin: 2em 0 1em 0;
-            border-bottom: 1px solid rgba(0, 255, 255, 0.3);
+            border-bottom: 2px solid #eee;
             padding-bottom: 0.7em;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-            text-shadow: 0 0 5px #0ff;
         }
         
         table {
             width: 100%;
             border-collapse: collapse;
             margin-top: 1em;
-            background: rgba(0, 10, 15, 0.6);
-            border: 1px solid rgba(0, 255, 255, 0.2);
-            border-radius: 4px;
+            background: white;
+            border-radius: 8px;
             overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
         }
         
         th {
-            background-color: rgba(0, 30, 40, 0.8);
-            color: #0ff;
+            background-color: #f8f9fa;
+            color: #333;
             padding: 1em;
             text-align: left;
-            font-weight: 700;
-            border-bottom: 2px solid rgba(0, 255, 255, 0.4);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            font-size: 0.85em;
+            font-weight: 600;
+            border-bottom: 2px solid #ddd;
         }
         
         td {
             padding: 0.9em 1em;
-            border-bottom: 1px solid rgba(0, 255, 255, 0.1);
-            color: #00ff9f;
+            border-bottom: 1px solid #eee;
         }
         
         tr:hover {
-            background-color: rgba(0, 255, 255, 0.05);
+            background-color: #f8f9fa;
         }
         
         tr:last-child td {
@@ -253,59 +138,45 @@
         }
         
         code {
-            background-color: rgba(0, 0, 0, 0.5);
+            background-color: #f5f5f5;
             padding: 0.2em 0.5em;
-            border-radius: 2px;
+            border-radius: 3px;
             font-family: 'Courier New', monospace;
             font-size: 0.9em;
-            color: #0ff;
-            border: 1px solid rgba(0, 255, 255, 0.2);
         }
         
         .empty-message {
             text-align: center;
-            color: #0ff;
+            color: #999;
             padding: 2em;
-            opacity: 0.5;
+            font-style: italic;
         }
         
         .footer {
             text-align: center;
             margin-top: 3em;
             padding-top: 2em;
-            border-top: 1px solid rgba(0, 255, 255, 0.3);
-            color: #0ff;
+            border-top: 2px solid #eee;
+            color: #888;
             font-size: 0.9em;
-            opacity: 0.7;
-        }
-        
-        .footer small {
-            color: #00ff9f;
-            opacity: 0.6;
         }
         
         .badge {
             display: inline-block;
             padding: 0.3em 0.8em;
-            border-radius: 2px;
+            border-radius: 20px;
             font-size: 0.85em;
             font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
         }
         
         .badge.active {
-            background-color: rgba(0, 255, 0, 0.2);
-            color: #0f0;
-            border: 1px solid #0f0;
-            box-shadow: 0 0 5px rgba(0, 255, 0, 0.3);
+            background-color: #d4edda;
+            color: #155724;
         }
         
         .badge.inactive {
-            background-color: rgba(255, 0, 0, 0.2);
-            color: #f00;
-            border: 1px solid #f00;
-            box-shadow: 0 0 5px rgba(255, 0, 0, 0.3);
+            background-color: #f8d7da;
+            color: #721c24;
         }
     </style>
 </head>
@@ -315,23 +186,23 @@
             <h1>🌐 D-GRID Mission Control</h1>
             <p>Status of the decentralized task execution network</p>
             <div class="update-info">
-                Last update: <strong>2025-10-16 18:52:59 UTC</strong>
+                Last update: <strong>2025-11-21 11:50:05 UTC</strong>
                 • Auto-refresh every 60 seconds
             </div>
         </div>
         
-        <h2>📊 General Status</h2>
+        <h2>📊 Stato Generale</h2>
         <div class="stats">
             <div class="stat active">
                 <h3>0</h3>
                 <p>Active Nodes</p>
             </div>
             <div class="stat queue">
-                <h3>1</h3>
+                <h3>0</h3>
                 <p>Tasks in Queue</p>
             </div>
             <div class="stat running">
-                <h3>0</h3>
+                <h3>1</h3>
                 <p>Running Tasks</p>
             </div>
             <div class="stat completed">
@@ -340,7 +211,7 @@
             </div>
         </div>
         
-        <h2>🖥️ Network Nodes</h2>
+        <h2>🖥️ Nodi della Rete</h2>
         <table>
             <thead>
                 <tr>
@@ -352,11 +223,17 @@
                 </tr>
             </thead>
             <tbody>
-                <tr><td colspan='5' style='text-align: center; color: #999;'>No nodes registered.</td></tr>
+                <tr>
+                <td style="text-align: center;">🔴 INACTIVE</td>
+                <td><code>local-test-001</code></td>
+                <td>N/A</td>
+                <td>16.0 GB</td>
+                <td>3084946 seconds ago</td>
+            </tr>
             </tbody>
         </table>
         
-        <h2>⚙️ Task Details</h2>
+        <h2>⚙️ Dettagli Task</h2>
         <p style="color: #666; margin-bottom: 1em;">
             Total: <strong>1</strong> tasks in the system
             • Failed: <strong>0</strong>

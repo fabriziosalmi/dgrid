@@ -47,8 +47,11 @@ def get_nodes_status():
             with open(node_file, 'r') as f:
                 data = json.load(f)
             
-            # Parse ISO timestamp
+            # Parse ISO timestamp and ensure it's timezone-aware
             last_heartbeat = datetime.fromisoformat(data['last_heartbeat'])
+            # If the timestamp is naive (no timezone info), assume UTC
+            if last_heartbeat.tzinfo is None:
+                last_heartbeat = last_heartbeat.replace(tzinfo=timezone.utc)
             uptime = now - last_heartbeat
             
             # Determine if active (recent heartbeat)
