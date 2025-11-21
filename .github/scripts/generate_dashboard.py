@@ -112,21 +112,44 @@ def cleanup_orphan_tasks(nodes_status):
         print(f"  Directory {in_progress_dir} does not exist. Skipping cleanup.")
         return []
 
-    # Identify active nodes
+    # Ensure queue directory exists before attempting to move tasks
+    if not queue_dir.exists():
+        print(f"  Creating queue directory: {queue_dir}")
+        queue_dir.mkdir(parents=True, exist_ok=True)
+        # Create .gitkeep to ensure the directory is tracked by git
+        gitkeep_path = queue_dir / ".gitkeep"
+        gitkeep_path.touch()
+
+    # Identify active nodes and build a mapping of all known node IDs
     active_node_ids = {node['node_id'] for node in nodes_status if node['status'] == "🟢 ACTIVE"}
+    all_node_ids = {node['node_id'] for node in nodes_status}
     cleaned_tasks = []
 
     for task_file in in_progress_dir.glob("*.json"):
         try:
-            # Filename format: {node_id}-{task_id}.json
-            # E.g.: worker-001-fibonacci-2025.json
-            parts = task_file.name.split('-', 1)
-            if len(parts) < 2:
-                print(f"  ⚠️  Unexpected filename format: {task_file.name}, skipping")
-                continue
+            # Filename format: {node_id}-{task_name}.json
+            # E.g.: local-test-001-demo-task-001.json
+            # Node IDs may contain dashes, so we need to match against known node IDs
             
-            node_id_in_charge = parts[0]
-            task_name = parts[1]
+            filename = task_file.name
+            node_id_in_charge = None
+            task_name = None
+            
+            # Try to match against all known node IDs
+            for node_id in all_node_ids:
+                if filename.startswith(f"{node_id}-"):
+                    node_id_in_charge = node_id
+                    task_name = filename[len(node_id) + 1:]  # +1 for the dash
+                    break
+            
+            # If no known node ID matched, fall back to simple split (for backward compatibility)
+            if node_id_in_charge is None:
+                parts = filename.split('-', 1)
+                if len(parts) < 2:
+                    print(f"  ⚠️  Unexpected filename format: {filename}, skipping")
+                    continue
+                node_id_in_charge = parts[0]
+                task_name = parts[1]
             
             # If node is inactive, task is orphan
             if node_id_in_charge not in active_node_ids:
