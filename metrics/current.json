@@ -1,13 +1,13 @@
 {
-  "timestamp": "2025-11-21T13:21:45.066491",
+  "timestamp": "2025-11-21T13:36:01.701649",
   "nodes": {
     "total": 1,
     "active": 0,
     "inactive": 1
   },
   "tasks": {
-    "queued": 0,
-    "in_progress": 1,
+    "queued": 1,
+    "in_progress": 0,
     "completed_last_hour": 0,
     "failed_last_hour": 0
   },
@@ -17,8 +17,10 @@
     "tasks_per_worker": 0
   },
   "scaling": {
-    "recommendation": "maintain",
-    "confidence": "medium",
-    "reasons": []
+    "recommendation": "scale_up",
+    "confidence": "high",
+    "reasons": [
+      "Queue depth (1) exceeds 5x active workers (0)"
+    ]
   }
 }
