@@ -10,7 +10,7 @@ on:
       - '.github/scripts/generate_dashboard.py'
   workflow_dispatch:
   schedule:
-    - cron: '*/5 * * * *'  # Ogni 5 minuti
+    - cron: '0 0 * * *'  # Ogni 5 minuti
 
 permissions:
   contents: write
