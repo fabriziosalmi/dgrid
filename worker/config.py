@@ -12,27 +12,27 @@ try:
 except ImportError:
     psutil = None
 
-# === Configurazione Repository Git ===
+# === Git Repository Configuration ===
 REPO_URL = os.getenv("DGRID_REPO_URL", "https://github.com/fabriziopandini/d-grid.git")
 REPO_PATH = os.getenv("DGRID_REPO_PATH", "/tmp/d-grid-repo")
 
-# === Configurazione Nodo ===
+# === Node Configuration ===
 NODE_ID = os.getenv("NODE_ID", socket.gethostname())
 NODE_NAME = os.getenv("NODE_NAME", f"worker-{NODE_ID}")
 
-# === Credenziali Git ===
+# === Git Credentials ===
 GIT_USER_NAME = os.getenv("GIT_USER_NAME", "D-GRID Worker")
 GIT_USER_EMAIL = os.getenv("GIT_USER_EMAIL", f"worker+{NODE_ID}@d-grid.local")
-GIT_TOKEN = os.getenv("GIT_TOKEN", None)  # Per autenticazione con HTTPS
+GIT_TOKEN = os.getenv("GIT_TOKEN", None)  # For HTTPS authentication
 
-# === Configurazione Docker ===
+# === Docker Configuration ===
 DOCKER_CPUS = os.getenv("DOCKER_CPUS", "1")
 DOCKER_MEMORY = os.getenv("DOCKER_MEMORY", "512m")
-DOCKER_TIMEOUT = int(os.getenv("DOCKER_TIMEOUT", "3600"))  # secondi
+DOCKER_TIMEOUT = int(os.getenv("DOCKER_TIMEOUT", "3600"))  # seconds
 
-# === Configurazione Worker Loop ===
-PULL_INTERVAL = int(os.getenv("PULL_INTERVAL", "10"))  # secondi tra i pull
-HEARTBEAT_INTERVAL = int(os.getenv("HEARTBEAT_INTERVAL", "60"))  # secondi tra gli heartbeat
+# === Worker Loop Configuration ===
+PULL_INTERVAL = int(os.getenv("PULL_INTERVAL", "10"))  # seconds between pulls
+HEARTBEAT_INTERVAL = int(os.getenv("HEARTBEAT_INTERVAL", "60"))  # seconds between heartbeats
 
 # === Performance & Optimization (Phase 1 Improvements) ===
 USE_SHALLOW_CLONE = os.getenv("USE_SHALLOW_CLONE", "true").lower() == "true"  # #5: Optimize Git Ops
@@ -48,15 +48,15 @@ MAX_MEMORY_PERCENT = int(os.getenv("MAX_MEMORY_PERCENT", "80"))  # Maximum memor
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 LOG_FILE = os.getenv("LOG_FILE", "/tmp/d-grid-worker.log")
 
-# === Specs del Nodo (per la registrazione) ===
+# === Node Specs (for registration) ===
 def get_node_specs():
     """
-    Ritorna le specs del nodo (CPU, RAM, etc).
-    Se psutil non è disponibile, ritorna valori di fallback conservativi.
+    Returns node specs (CPU, RAM, etc).
+    If psutil is not available, returns conservative fallback values.
     """
     try:
         if psutil is None:
-            raise ImportError("psutil non disponibile")
+            raise ImportError("psutil not available")
         
         return {
             "node_id": NODE_ID,
@@ -66,7 +66,7 @@ def get_node_specs():
             "disk_gb": round(psutil.disk_usage("/").total / (1024**3), 2),
         }
     except Exception as e:
-        # Fallback: specs minimali se psutil non è disponibile o sistema anomalo
+        # Fallback: minimal specs if psutil is not available or system is anomalous
         return {
             "node_id": NODE_ID,
             "node_name": NODE_NAME,
@@ -77,82 +77,81 @@ def get_node_specs():
 
 def get_git_auth_url():
     """
-    Ritorna l'URL di autenticazione Git.
+    Returns the Git authentication URL.
     
     ⚠️  SECURITY WARNING ⚠️
-    Se GIT_TOKEN è usato, l'URL conterrà il token in plaintext.
-    NON loggare mai questo URL completo. Usare questa funzione solo in contesti
-    privati (es. dentro subprocess con stderr/stdout gestito).
+    If GIT_TOKEN is used, the URL will contain the token in plaintext.
+    NEVER log this full URL. Use this function only in private contexts
+    (e.g., inside subprocess with stderr/stdout managed).
     
-    Preferibilmente usare SSH con chiavi invece di HTTPS + token.
+    Preferably use SSH with keys instead of HTTPS + token.
     """
     if GIT_TOKEN and REPO_URL.startswith("https://"):
-        # Costruisci URL con token (usato solo in contesti privati)
+        # Construct URL with token (used only in private contexts)
         url = REPO_URL.replace("https://", f"https://x-access-token:{GIT_TOKEN}@")
         return url
     return REPO_URL
 
 def validate_config():
     """
-    Valida la configurazione all'avvio del worker.
-    Ritorna una lista di errori (vuota se tutto OK).
+    Validates configuration at worker startup.
+    Returns a list of errors (empty if all OK).
     """
     errors = []
     
-    # Validazione REPO_URL
+    # Validate REPO_URL
     if not REPO_URL or not REPO_URL.startswith(("https://", "git@", "file://")):
-        errors.append(f"DGRID_REPO_URL non valido: '{REPO_URL}'. Deve iniziare con https://, git@, o file://")
+        errors.append(f"DGRID_REPO_URL invalid: '{REPO_URL}'. Must start with https://, git@, or file://")
     
-    # Validazione NODE_ID
+    # Validate NODE_ID
     if not NODE_ID or NODE_ID.strip() == "":
-        errors.append("NODE_ID non può essere vuoto. Impostare via env var o hostname fallback.")
+        errors.append("NODE_ID cannot be empty. Set via env var or hostname fallback.")
     
-    # Validazione intervalli
+    # Validate intervals
     if PULL_INTERVAL < 1:
-        errors.append(f"PULL_INTERVAL deve essere >= 1s, trovato: {PULL_INTERVAL}s")
+        errors.append(f"PULL_INTERVAL must be >= 1s, found: {PULL_INTERVAL}s")
     
     if PULL_INTERVAL > 3600:
-        errors.append(f"PULL_INTERVAL sembra troppo alto: {PULL_INTERVAL}s (max consigliato: 3600s)")
+        errors.append(f"PULL_INTERVAL seems too high: {PULL_INTERVAL}s (max recommended: 3600s)")
     
     if HEARTBEAT_INTERVAL < 1:
-        errors.append(f"HEARTBEAT_INTERVAL deve essere >= 1s, trovato: {HEARTBEAT_INTERVAL}s")
+        errors.append(f"HEARTBEAT_INTERVAL must be >= 1s, found: {HEARTBEAT_INTERVAL}s")
     
     if HEARTBEAT_INTERVAL < PULL_INTERVAL:
-        errors.append(f"HEARTBEAT_INTERVAL ({HEARTBEAT_INTERVAL}s) < PULL_INTERVAL ({PULL_INTERVAL}s). Heartbeat dovrebbe essere meno frequente di pull.")
+        errors.append(f"HEARTBEAT_INTERVAL ({HEARTBEAT_INTERVAL}s) < PULL_INTERVAL ({PULL_INTERVAL}s). Heartbeat should be less frequent than pull.")
     
-    # Validazione timeout Docker
+    # Validate Docker timeout
     if DOCKER_TIMEOUT < 5:
-        errors.append(f"DOCKER_TIMEOUT deve essere >= 5s, trovato: {DOCKER_TIMEOUT}s")
+        errors.append(f"DOCKER_TIMEOUT must be >= 5s, found: {DOCKER_TIMEOUT}s")
     
-    # Validazione risorze Docker
+    # Validate Docker resources
     try:
         float(DOCKER_CPUS)
     except (ValueError, TypeError):
-        errors.append(f"DOCKER_CPUS non è un numero valido: '{DOCKER_CPUS}'")
+        errors.append(f"DOCKER_CPUS is not a valid number: '{DOCKER_CPUS}'")
     
     if DOCKER_MEMORY not in ["512m", "1g", "2g", "4g", "8g", "16g"] and not DOCKER_MEMORY.endswith(("m", "g")):
-        errors.append(f"DOCKER_MEMORY formato non riconosciuto: '{DOCKER_MEMORY}' (usa: 512m, 1g, 2g, etc.)")
+        errors.append(f"DOCKER_MEMORY format not recognized: '{DOCKER_MEMORY}' (use: 512m, 1g, 2g, etc.)")
     
-    # Validazione LOG_LEVEL
+    # Validate LOG_LEVEL
     valid_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
     if LOG_LEVEL not in valid_levels:
-        errors.append(f"LOG_LEVEL non valido: '{LOG_LEVEL}'. Usa uno di: {', '.join(valid_levels)}")
+        errors.append(f"LOG_LEVEL invalid: '{LOG_LEVEL}'. Use one of: {', '.join(valid_levels)}")
     
-    # Validazione Phase 1 improvements
+    # Validate Phase 1 improvements
     if MAX_PARALLEL_TASKS < 1:
-        errors.append(f"MAX_PARALLEL_TASKS deve essere >= 1, trovato: {MAX_PARALLEL_TASKS}")
+        errors.append(f"MAX_PARALLEL_TASKS must be >= 1, found: {MAX_PARALLEL_TASKS}")
     
     if MAX_PARALLEL_TASKS > 10:
-        errors.append(f"MAX_PARALLEL_TASKS sembra troppo alto: {MAX_PARALLEL_TASKS} (max consigliato: 10)")
+        errors.append(f"MAX_PARALLEL_TASKS seems too high: {MAX_PARALLEL_TASKS} (max recommended: 10)")
     
     if MAX_TASKS_PER_HOUR < 0:
-        errors.append(f"MAX_TASKS_PER_HOUR deve essere >= 0, trovato: {MAX_TASKS_PER_HOUR}")
+        errors.append(f"MAX_TASKS_PER_HOUR must be >= 0, found: {MAX_TASKS_PER_HOUR}")
     
     if MAX_CPU_PERCENT < 1 or MAX_CPU_PERCENT > 100:
-        errors.append(f"MAX_CPU_PERCENT deve essere 1-100, trovato: {MAX_CPU_PERCENT}")
+        errors.append(f"MAX_CPU_PERCENT must be 1-100, found: {MAX_CPU_PERCENT}")
     
     if MAX_MEMORY_PERCENT < 1 or MAX_MEMORY_PERCENT > 100:
-        errors.append(f"MAX_MEMORY_PERCENT deve essere 1-100, trovato: {MAX_MEMORY_PERCENT}")
+        errors.append(f"MAX_MEMORY_PERCENT must be 1-100, found: {MAX_MEMORY_PERCENT}")
     
     return errors
-

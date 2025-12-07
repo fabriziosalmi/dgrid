@@ -44,7 +44,7 @@ def retry_with_backoff(max_retries=5, initial_delay=1, backoff_factor=2):
     return decorator
 
 class GitHandler:
-    """Handler per tutte le operazioni Git."""
+    """Handler for all Git operations."""
     
     def __init__(self):
         self.repo_path = Path(REPO_PATH)
@@ -69,28 +69,28 @@ class GitHandler:
     
     def clone_or_open_repo(self, use_shallow_clone=True):
         """
-        Clona il repo se non esiste, altrimenti lo apre.
+        Clones the repo if it doesn't exist, otherwise opens it.
         
         Args:
             use_shallow_clone: If True, uses shallow clone (depth=1) for faster cloning.
                              Reduces clone time by 80-90% and saves bandwidth.
         """
         try:
-            # Check se è davvero un repo (esiste .git)
+            # Check if it's really a repo (exists .git)
             is_repo = self.repo_path.exists() and (self.repo_path / ".git").exists()
             
             if is_repo:
-                logger.info(f"Repository esiste già in {self.repo_path}, apertura...")
+                logger.info(f"Repository already exists in {self.repo_path}, opening...")
                 self.repo = Repo(self.repo_path)
-                logger.info("Repository aperto con successo.")
+                logger.info("Repository opened successfully.")
             else:
-                # Ripulisci directory se esiste ma non è un repo
+                # Clean directory if it exists but is not a repo
                 if self.repo_path.exists():
-                    logger.info(f"Directory {self.repo_path} esiste ma non è un repo, pulizia...")
+                    logger.info(f"Directory {self.repo_path} exists but is not a repo, cleaning...")
                     import shutil
                     shutil.rmtree(self.repo_path)
                 
-                logger.info(f"Clonazione repository da {REPO_URL}...")
+                logger.info(f"Cloning repository from {REPO_URL}...")
                 
                 # Use credential manager for secure authentication (#12)
                 if self.credential_manager:
@@ -105,23 +105,23 @@ class GitHandler:
                     logger.info("Shallow clone completed - 80-90% faster than full clone.")
                 else:
                     self.repo = Repo.clone_from(git_url, self.repo_path)
-                    logger.info(f"Repository clonato con successo in {self.repo_path}.")
+                    logger.info(f"Repository cloned successfully in {self.repo_path}.")
             
-            # Configura git user
+            # Configure git user
             self._configure_git_user()
             return True
         except Exception as e:
-            logger.error(f"Errore nel clone/apertura del repository: {e}")
+            logger.error(f"Error cloning/opening repository: {e}")
             return False
     
     def _configure_git_user(self):
-        """Configura l'utente git per i commit."""
+        """Configures git user for commits."""
         try:
             self.repo.config_writer().set_value("user", "name", GIT_USER_NAME).release()
             self.repo.config_writer().set_value("user", "email", GIT_USER_EMAIL).release()
-            logger.debug(f"Git user configurato: {GIT_USER_NAME} <{GIT_USER_EMAIL}>")
+            logger.debug(f"Git user configured: {GIT_USER_NAME} <{GIT_USER_EMAIL}>")
         except Exception as e:
-            logger.error(f"Errore nella configurazione del git user: {e}")
+            logger.error(f"Error configuring git user: {e}")
     
     def check_remote_updates(self):
         """
@@ -153,7 +153,7 @@ class GitHandler:
     
     def pull_rebase(self, smart_poll=True):
         """
-        Fa un pull con rebase per restare sempre aggiornati.
+        Performs a pull with rebase to stay up-to-date.
         
         Args:
             smart_poll: If True, checks remote HEAD before pulling to avoid unnecessary pulls.
@@ -165,29 +165,29 @@ class GitHandler:
                 logger.debug("Skipping pull - repository already up-to-date")
                 return True
             
-            logger.info("Eseguendo pull con rebase...")
+            logger.info("Executing pull with rebase...")
             self.repo.remotes.origin.pull(rebase=True)
-            logger.info("Pull con rebase completato.")
+            logger.info("Pull with rebase completed.")
             return True
         except GitCommandError as e:
-            logger.error(f"Errore nel pull: {e}")
+            logger.error(f"Error in pull: {e}")
             return False
         except Exception as e:
-            logger.error(f"Errore durante il pull: {e}")
+            logger.error(f"Error during pull: {e}")
             return False
     
     @retry_with_backoff(max_retries=5, initial_delay=2)
     def commit_and_push(self, message, paths=None):
         """
-        Fa un commit atomico e un push dei cambiamenti.
+        Performs an atomic commit and push of changes.
         Includes retry logic with exponential backoff (#6).
         
         Args:
-            message: Messaggio del commit.
-            paths: Lista di percorsi da committare (default: tutti i cambiamenti).
+            message: Commit message.
+            paths: List of paths to commit (default: all changes).
         
         Returns:
-            True se successo, False altrimenti.
+            True if success, False otherwise.
         """
         try:
             if paths:
@@ -195,62 +195,62 @@ class GitHandler:
             else:
                 self.repo.index.add(["."])
             
-            # Controlla se ci sono cambiamenti
+            # Check if there are changes
             if self.repo.index.diff("HEAD"):
                 self.repo.index.commit(message)
-                logger.info(f"Commit creato: '{message}'")
+                logger.info(f"Commit created: '{message}'")
             else:
-                logger.debug("Nessun cambiamento da committare.")
+                logger.debug("No changes to commit.")
                 return True
             
             # Push
             self.repo.remotes.origin.push()
-            logger.info("Push completato.")
+            logger.info("Push completed.")
             return True
         except GitCommandError as e:
-            logger.error(f"Errore nel commit/push: {e}")
+            logger.error(f"Error in commit/push: {e}")
             raise  # Re-raise for retry decorator
         except Exception as e:
-            logger.error(f"Errore durante commit/push: {e}")
+            logger.error(f"Error during commit/push: {e}")
             raise  # Re-raise for retry decorator
     
     def move_file(self, src, dst):
         """
-        Sposta un file usando 'git mv' (atomico dal punto di vista di git).
+        Moves a file using 'git mv' (atomic from git's perspective).
         
         Args:
-            src: Percorso sorgente (relativo al repo).
-            dst: Percorso destinazione (relativo al repo).
+            src: Source path (relative to repo).
+            dst: Destination path (relative to repo).
         
         Returns:
-            True se successo, False altrimenti.
+            True if success, False otherwise.
         """
         try:
             full_src = self.repo_path / src
             full_dst = self.repo_path / dst
             
             if not full_src.exists():
-                logger.error(f"File sorgente non esiste: {full_src}")
+                logger.error(f"Source file does not exist: {full_src}")
                 return False
             
-            # Assicurati che la directory di destinazione esista
+            # Ensure destination directory exists
             full_dst.parent.mkdir(parents=True, exist_ok=True)
             
-            # Usa git mv
+            # Use git mv
             self.repo.index.move([str(src), str(dst)])
-            logger.debug(f"File spostato: {src} -> {dst}")
+            logger.debug(f"File moved: {src} -> {dst}")
             return True
         except Exception as e:
-            logger.error(f"Errore nello spostamento del file: {e}")
+            logger.error(f"Error moving file: {e}")
             return False
     
     def get_repo_path(self):
-        """Ritorna il percorso del repository."""
+        """Returns the repository path."""
         return self.repo_path
 
 def get_git_handler():
     """
-    Factory function per ottenere un GitHandler inizializzato.
+    Factory function to get an initialized GitHandler.
     Uses configuration settings for optimization.
     """
     from config import USE_SHALLOW_CLONE
@@ -258,5 +258,5 @@ def get_git_handler():
     if handler.clone_or_open_repo(use_shallow_clone=USE_SHALLOW_CLONE):
         return handler
     else:
-        logger.error("Impossibile inizializzare GitHandler.")
+        logger.error("Unable to initialize GitHandler.")
         return None

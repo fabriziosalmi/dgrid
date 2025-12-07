@@ -13,7 +13,7 @@ logger = get_logger("task_runner")
 
 
 class TaskRunner:
-    """Runner per l'esecuzione dei task."""
+    """Runner for task execution."""
     
     def __init__(self, git_handler):
         self.git_handler = git_handler
@@ -35,72 +35,72 @@ class TaskRunner:
     
     def find_task_to_run(self):
         """
-        Scansiona tasks/queue e prova a prendere in carico un task.
-        Usa 'git mv' per una transazione atomica.
+        Scans tasks/queue and tries to pick up a task.
+        Uses 'git mv' for an atomic transaction.
         
         Returns:
-            Path del task in in_progress, o None se nessun task disponibile.
+            Path of the task in in_progress, or None if no task available.
         """
         try:
             if not self.queue_dir.exists():
-                logger.debug("Queue directory non esiste.")
+                logger.debug("Queue directory does not exist.")
                 return None
             
-            # Scorri i file nella queue
+            # Iterate files in queue
             tasks = sorted([f for f in self.queue_dir.iterdir() if f.is_file()])
             if not tasks:
-                logger.debug("Nessun task disponibile nella queue.")
+                logger.debug("No tasks available in queue.")
                 return None
             
-            # Prendi il primo task
+            # Pick the first task
             task_file = tasks[0]
             task_name = task_file.name
             
-            logger.info(f"Tentando di acquisire task: {task_name}")
+            logger.info(f"Attempting to acquire task: {task_name}")
             
-            # Sposta il file da queue a in_progress usando git mv
+            # Move file from queue to in_progress using git mv
             src = f"tasks/queue/{task_name}"
             dst = f"tasks/in_progress/{NODE_ID}-{task_name}"
             
             if self.git_handler.move_file(src, dst):
-                # Commit e push atomico - il primo che pushes vince
+                # Atomic commit and push - first to push wins
                 if self.git_handler.commit_and_push(
-                    f"[D-GRID] {NODE_ID} acquisisce task {task_name}",
+                    f"[D-GRID] {NODE_ID} acquires task {task_name}",
                     paths=[src, dst]
                 ):
-                    logger.info(f"Task acquisito: {NODE_ID}-{task_name}")
+                    logger.info(f"Task acquired: {NODE_ID}-{task_name}")
                     return self.in_progress_dir / f"{NODE_ID}-{task_name}"
                 else:
-                    logger.warning(f"Fallito il push dell'acquisizione del task {task_name}, riprovando...")
+                    logger.warning(f"Failed to push task acquisition for {task_name}, retrying...")
                     return None
             else:
-                logger.warning(f"Fallito lo spostamento del task {task_name}")
+                logger.warning(f"Failed to move task {task_name}")
                 return None
         except Exception as e:
-            logger.error(f"Errore nel trovare/acquisire un task: {e}")
+            logger.error(f"Error finding/acquiring task: {e}")
             return None
     
     def execute_task(self, task_file):
         """
-        Legge il file del task ed esegue il comando in un container Docker isolato.
+        Reads the task file and executes the command in an isolated Docker container.
         
-        SICUREZZA: Il container è eseguito con:
-        - --network=none: Nessun accesso alla rete
-        - --read-only: Filesystem in sola lettura
-        - --rm: Pulizia automatica
-        - Limiti di CPU e memoria
+        SECURITY: The container is executed with:
+        - --network=none: No network access
+        - --read-only: Read-only filesystem
+        - --rm: Automatic cleanup
+        - CPU and memory limits
         
         Args:
-            task_file: Path del file del task.
+            task_file: Path of the task file.
         
         Returns:
-            Dict con exit_code, stdout, stderr.
+            Dict with exit_code, stdout, stderr.
         """
         task_id = "unknown"
         try:
             if not task_file.exists():
-                logger.error(f"File del task non esiste: {task_file}")
-                return {"exit_code": -1, "stdout": "", "stderr": "File non trovato"}
+                logger.error(f"Task file does not exist: {task_file}")
+                return {"exit_code": -1, "stdout": "", "stderr": "File not found"}
             
             # Verify task signature (#9: Task Signing & Verification)
             if self.task_signer and self.task_signer.is_enabled():
@@ -112,7 +112,7 @@ class TaskRunner:
                         "stderr": "Task signature verification failed - task rejected for security"
                     }
             
-            # Leggi il file del task
+            # Read task file
             with open(task_file, "r") as f:
                 task_data = json.load(f)
             
@@ -121,37 +121,37 @@ class TaskRunner:
             task_script = task_data.get("script", "")
             task_timeout = task_data.get("timeout_seconds", 60)
             
-            # Validazione script
+            # Script validation
             if not task_script or task_script.strip() == "":
-                logger.error(f"Task {task_id}: script vuoto")
-                return {"exit_code": -1, "stdout": "", "stderr": "Script del task vuoto"}
+                logger.error(f"Task {task_id}: empty script")
+                return {"exit_code": -1, "stdout": "", "stderr": "Task script is empty"}
             
-            # Validazione timeout (deve essere tra 10 e 300)
+            # Timeout validation (must be between 10 and 300)
             if not isinstance(task_timeout, int) or task_timeout < 10 or task_timeout > 300:
-                logger.error(f"Task {task_id}: timeout_seconds non valido: {task_timeout}")
-                return {"exit_code": -1, "stdout": "", "stderr": f"Timeout non valido (richiesto 10-300): {task_timeout}"}
+                logger.error(f"Task {task_id}: invalid timeout_seconds: {task_timeout}")
+                return {"exit_code": -1, "stdout": "", "stderr": f"Invalid timeout (required 10-300): {task_timeout}"}
             
-            # ⚠️  SECURITY: Immagine sempre python:3.11-alpine
+            # ⚠️  SECURITY: Image always python:3.11-alpine
             task_image = "python:3.11-alpine"
-            logger.info(f"Eseguendo task {task_id}")
+            logger.info(f"Executing task {task_id}")
             logger.debug(f"Script length: {len(task_script)} char, timeout: {task_timeout}s")
             
-            # Prepara il comando Docker con isolamento massimo
+            # Prepare Docker command with maximum isolation
             docker_cmd = [
                 "docker", "run",
                 "--rm",
-                # Isolamento della rete
+                # Network isolation
                 "--network=none",
-                # Filesystem protetto
+                # Protected filesystem
                 "--read-only",
-                # Limiti di risorsa
+                # Resource limits
                 f"--cpus={DOCKER_CPUS}",
                 f"--memory={DOCKER_MEMORY}",
-                # Limiti di tempo del processo (protegge da loop infiniti)
+                # Process time limits (protects against infinite loops)
                 f"--pids-limit=10",
-                # Non eseguire come root
+                # Do not run as root
                 "--user=1000:1000",
-                # Immagine e comando
+                # Image and command
                 task_image,
                 "sh", "-c", task_script
             ]
@@ -167,11 +167,11 @@ class TaskRunner:
                     timeout=task_timeout
                 )
                 
-                logger.info(f"Task {task_id} completato con exit code {result.returncode}")
+                logger.info(f"Task {task_id} completed with exit code {result.returncode}")
                 
                 return {
                     "exit_code": result.returncode,
-                    "stdout": result.stdout[:10000],  # Limita l'output a 10KB
+                    "stdout": result.stdout[:10000],  # Limit output to 10KB
                     "stderr": result.stderr[:10000]
                 }
             except subprocess.TimeoutExpired:
@@ -179,33 +179,33 @@ class TaskRunner:
                 return {
                     "exit_code": -2,
                     "stdout": "",
-                    "stderr": f"Timeout dopo {task_timeout}s"
+                    "stderr": f"Timeout after {task_timeout}s"
                 }
         except json.JSONDecodeError as e:
-            logger.error(f"Task {task_id}: file JSON malformato: {e}")
-            return {"exit_code": -1, "stdout": "", "stderr": f"JSON malformato: {e}"}
+            logger.error(f"Task {task_id}: malformed JSON file: {e}")
+            return {"exit_code": -1, "stdout": "", "stderr": f"Malformed JSON: {e}"}
         except Exception as e:
-            logger.error(f"Task {task_id}: errore nell'esecuzione: {e}", exc_info=True)
+            logger.error(f"Task {task_id}: execution error: {e}", exc_info=True)
             return {"exit_code": -1, "stdout": "", "stderr": str(e)}
     
     def report_task_result(self, task_file, result):
         """
-        Riporta il risultato del task spostando il file nella cartella appropriata
-        e creando un file di log con l'output.
+        Reports the task result by moving the file to the appropriate folder
+        and creating a log file with the output.
         
         Args:
-            task_file: Path del file del task in in_progress.
-            result: Dict con exit_code, stdout, stderr.
+            task_file: Path of the task file in in_progress.
+            result: Dict with exit_code, stdout, stderr.
         
         Returns:
-            True se successo, False altrimenti.
+            True if success, False otherwise.
         """
         try:
             if not task_file.exists():
-                logger.error(f"File del task non esiste: {task_file}")
+                logger.error(f"Task file does not exist: {task_file}")
                 return False
             
-            # Leggi il task
+            # Read task
             with open(task_file, "r") as f:
                 task_data = json.load(f)
             
@@ -213,11 +213,11 @@ class TaskRunner:
             task_name = task_file.name
             is_success = result["exit_code"] == 0
             
-            # Determina la directory di destinazione
+            # Determine destination directory
             dest_dir = self.completed_dir if is_success else self.failed_dir
             dest_file = dest_dir / task_name
             
-            # Crea un file di log
+            # Create log file
             log_file = dest_dir / f"{task_name}.log"
             log_data = {
                 "task_id": task_id,
@@ -229,30 +229,30 @@ class TaskRunner:
                 "status": "success" if is_success else "failed"
             }
             
-            # Sposta il file del task
+            # Move task file
             dest_file.parent.mkdir(parents=True, exist_ok=True)
             task_file.rename(dest_file)
-            logger.info(f"Task file spostato: {task_name} -> {dest_file.name}")
+            logger.info(f"Task file moved: {task_name} -> {dest_file.name}")
             
-            # Scrivi il log
+            # Write log
             with open(log_file, "w") as f:
                 json.dump(log_data, f, indent=2)
-            logger.info(f"Log del task scritto: {log_file.name}")
+            logger.info(f"Task log written: {log_file.name}")
             
-            # Commit e push
+            # Commit and push
             src = f"tasks/in_progress/{task_name}"
             dst_relative = f"tasks/{'completed' if is_success else 'failed'}/{task_name}"
             log_relative = f"tasks/{'completed' if is_success else 'failed'}/{task_name}.log"
             
             if self.git_handler.commit_and_push(
-                f"[D-GRID] Task {task_id} {'completato' if is_success else 'fallito'} da {NODE_ID}",
+                f"[D-GRID] Task {task_id} {'completed' if is_success else 'failed'} by {NODE_ID}",
                 paths=[str(dest_file), str(log_file)]
             ):
-                logger.info(f"Risultato del task {task_id} pushato.")
+                logger.info(f"Task {task_id} result pushed.")
                 return True
             else:
-                logger.error(f"Errore nel push del risultato del task {task_id}")
+                logger.error(f"Error pushing task {task_id} result")
                 return False
         except Exception as e:
-            logger.error(f"Errore nel reporting del risultato del task: {e}")
+            logger.error(f"Error reporting task result: {e}")
             return False
