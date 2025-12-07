@@ -273,3 +273,30 @@ If you suspect a security incident:
 - [GitHub SSH Setup](https://docs.github.com/en/authentication/connecting-to-github-with-ssh)
 - [Git Credential Storage](https://git-scm.com/docs/gitcredentials)
 - [Docker Security](https://docs.docker.com/engine/security/)
+
+## Reporting a Vulnerability
+
+We take the security of D-GRID seriously. If you believe you have found a security vulnerability, please report it to us as described below.
+
+**Please do not report security vulnerabilities through public GitHub issues.**
+
+### Reporting Process
+
+1.  Email your findings to [fabrizio.salmi@gmail.com](mailto:fabrizio.salmi@gmail.com).
+2.  Include a detailed description of the vulnerability, steps to reproduce, and potential impact.
+3.  We will acknowledge receipt of your report within 48 hours.
+4.  We will work with you to assess the issue and determine a timeline for a fix.
+5.  Once a fix is released, we will credit you in our release notes (unless you prefer to remain anonymous).
+
+### Scope
+
+The following are in scope for security reports:
+-   Worker node remote code execution vulnerabilities.
+-   Task isolation bypasses.
+-   Git history manipulation vulnerabilities.
+-   Dashboard XSS vulnerabilities.
+
+The following are out of scope:
+-   DDoS attacks on the GitHub infrastructure itself.
+-   Social engineering attacks.
+-   Vulnerabilities in third-party dependencies (unless they are directly exploitable in D-GRID).

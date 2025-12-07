@@ -1,12 +1,12 @@
-# Dockerfile per D-GRID Worker Node
-# Base: Python 3.11 Alpine (leggerissima, ~150MB)
+# Dockerfile for D-GRID Worker Node
+# Base: Python 3.11 Alpine (lightweight, ~150MB)
 FROM python:3.11-alpine
 
-# Metadati
+# Metadata
 LABEL maintainer="D-GRID"
 LABEL description="D-GRID Worker Node - Decentralized Git-Relay Infrastructure"
 
-# Installa dipendenze di sistema (git, docker-cli, curl, build-essentials per psutil)
+# Install system dependencies (git, docker-cli, curl, build-essentials for psutil)
 RUN apk add --no-cache \
     git \
     docker-cli \
@@ -17,7 +17,7 @@ RUN apk add --no-cache \
     musl-dev \
     linux-headers
 
-# Crea directory di lavoro
+# Create working directory
 WORKDIR /app
 
 # Copia i file dei requirements

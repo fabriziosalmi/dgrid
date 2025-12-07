@@ -13,7 +13,7 @@ except ImportError:
     psutil = None
 
 # === Git Repository Configuration ===
-REPO_URL = os.getenv("DGRID_REPO_URL", "https://github.com/fabriziopandini/d-grid.git")
+REPO_URL = os.getenv("DGRID_REPO_URL", "https://github.com/fabriziosalmi/d-grid.git")
 REPO_PATH = os.getenv("DGRID_REPO_PATH", "/tmp/d-grid-repo")
 
 # === Node Configuration ===
